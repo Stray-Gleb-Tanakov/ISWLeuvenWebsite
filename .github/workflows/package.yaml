@@ -1,0 +1,24 @@
+name: Package & Publish Website
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build & Push
+      uses: docker/build-push-action@v6
+      with:
+        context: .           # Repo root ✓
+        file: ./Dockerfile   # Your file ✓
+        push: true
+        tags: ghcr.io/pants/website-isw:latest
