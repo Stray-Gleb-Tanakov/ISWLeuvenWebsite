@@ -5,6 +5,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
     - uses: actions/checkout@v4
     
@@ -21,4 +24,4 @@ jobs:
         context: .           # Repo root ✓
         file: ./Dockerfile   # Your file ✓
         push: true
-        tags: ghcr.io/pants/website-isw:latest
+        tags: ghcr.io/stray-gleb-tanakov/website-isw:latest
