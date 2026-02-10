@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import iswLogo from "@/assets/isw-logo.png";
+
 
 const ASCII_LOGO = `
  ██╗███████╗██╗    ██╗    ██╗     ███████╗██╗   ██╗██╗   ██╗███████╗███╗   ██╗

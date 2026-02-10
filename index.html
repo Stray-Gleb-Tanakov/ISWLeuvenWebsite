@@ -1,78 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ISW Leuven :: Terminal</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- floating fake windows -->
-  <div class="windows">
-    <div class="window" style="left:8%;animation-duration:26s">
-      <div class="titlebar"> iswleuven.be</div>
-      <div class="content">404: content not found</div>
-    </div>
-    <div class="window" style="left:55%;animation-duration:34s">
-      <div class="titlebar">Notes.pdf</div>
-      <div class="content">last modified: 2023</div>
-    </div>
-    <div class="window" style="left:72%;animation-duration:22s">
-      <div class="titlebar">Examenwiki</div>
-      <div class="content">restoring backup...</div>
-    </div>
-  </div>
-    <div class="circle" style="width:220px;height:220px;left:55%;animation-duration:30s"></div>
-    <div class="circle" style="width:80px;height:80px;left:75%;animation-duration:18s"></div>
-    <div class="circle" style="width:160px;height:160px;left:30%;animation-duration:26s"></div>
-  </div>
+    <title>ISW Leuven</title>
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+  </head>
 
-  <main class="terminal">
-    <div class="header" id="boot"></div>
-
-    <div class="section">
-      <div class="prompt">status</div>
-      <div class="box">
-        SYSTEM NOTICE: This site is currently a <strong>dud</strong>.<br />
-        Core modules are offline while the rest of the website is being rebuilt due to issues with malfunctioning server equipment.<br />
-        <br>
-        <br>
-        ISW (Informatics Student Working) is an association for and by students who like to be involved in computer science.
-        We give students the opportunity to share their knowledge with other students and gain a lot of experience. ISW endeavors to bundle this experience and knowledge as much as possible, in order to achieve a whole range of services and activities that we offer to students.
-        <strong>For whom?</strong> Students who like to be involved in computer science (so you don't necessarily have to study Applied Computer Science).
-        <strong>Where?</strong> On Connect campus (in the basement of the B-block). Once in the B-block there are arrows that lead you to our room.
-        When? There is usually someone present in the room between 9am and 9pm.
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="prompt">modules</div>
-      <div class="box buttons">
-        <button data-tab="examenwiki">Examenwiki</button>
-        <button data-tab="events">Future Events</button>
-      </div>
-    </div>
-
-    <div class="section hidden" id="tab-output">
-      <div class="prompt">output</div>
-      <div class="box" id="tab-text"></div>
-    </div>
-
-    <div class="section">
-      <div class="prompt">contact</div>
-      <div class="box">
-        ISW Leuven<br />
-        UCLL – Informatica and related<br /><br />
-        Mail: <a href="mailto:isw@ucll.be">isw@ucll.be</a><br />
-      </div>
-    </div>
-
-    <footer>
-      &gt; end of transmission<span class="blink">_</span>
-    </footer>
-  </main>
-
-  <script src="script.js"></script>
-</body>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
