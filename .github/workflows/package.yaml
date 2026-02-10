@@ -1,7 +1,7 @@
 name: Package & Publish Website
 on:
   push:
-    branches: [ main ]
+    branches: [ BrANCHTEST ]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,4 +24,4 @@ jobs:
         context: .           # Repo root ✓
         file: ./Dockerfile   # Your file ✓
         push: true
-        tags: ghcr.io/stray-gleb-tanakov/website-isw:latest
+        tags: ghcr.io/stray-gleb-tanakov/website-isw:dev
