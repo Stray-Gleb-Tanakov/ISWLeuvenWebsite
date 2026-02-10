@@ -68,7 +68,7 @@ export const commands: Command[] = [
     label: "contact",
     description: "Get in touch with the board",
     icon: <MessageSquare className="w-5 h-5" />,
-    href: "/about#contact",
+    href: "/contact",
   },
 ];
 
@@ -111,7 +111,7 @@ export const boardMembers: BoardMember[] = [
   { id: "3", name: "Xander D'Hondt", role: "Voorzitter externe werking"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
   { id: "5", name: "Bram Roden", role: "Workshopmaster" },
-  { id: "6", name: "Gleb Tanakov", role: "nothing"},
+  { id: "6", name: "Gleb Tanakov", role: "Everything And Nothing"},
   { id: "7", name: "Jonas Van Bussel", role: "Sociale Media"},
 ];
 

@@ -1,7 +1,5 @@
-import { User, Mail } from "lucide-react";
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
-import { boardMembers } from "@/data/site-data";
 
 const About = () => (
   <PageLayout>
@@ -62,29 +60,7 @@ const About = () => (
           </div>
         </section>
 
-        {/* Board */}
-        <section>
-          <h2 className="text-lg text-primary mb-4">
-            <span className="text-muted-foreground">$</span> ls ./bestuur
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {boardMembers.map((member) => (
-              <div key={member.id} className="bg-card border border-border p-4 hover:border-primary transition-colors">
-                <div className="flex items-center gap-3 mb-2">
-                  <User className="w-5 h-5 text-primary" />
-                  <span className="text-foreground font-bold">{member.name}</span>
-                </div>
-                <p className="text-muted-foreground text-sm"># {member.role}</p>
-                {member.email && (
-                  <a href={`mailto:${member.email}`} className="flex items-center gap-2 text-xs text-primary hover:underline mt-2">
-                    <Mail className="w-3 h-3" />
-                    {member.email}
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+        
       </div>
     </div>
   </PageLayout>
