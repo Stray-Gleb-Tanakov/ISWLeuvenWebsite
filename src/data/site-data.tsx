@@ -97,7 +97,7 @@ export const events: Event[] = [
     date: "2025-02-20",
     time: "14:00",
     location: "Library Room 3.14",
-    description: "we kill bram because he owes us events.",
+    description: "Testing a different amount of text to see how it looks in the card layout. This should be enough to test the wrapping and spacing.",
   }
 ];
 
@@ -107,7 +107,7 @@ export const events: Event[] = [
 
 export const boardMembers: BoardMember[] = [
   { id: "1", name: "Willem Speetjens", role: "Penningmeester" },
-  { id: "2", name: "Thomas Peelman", role: "Secretaris", email: "thomas.peelman@student.ucll.be" },
+  { id: "2", name: "Thomas Peelman", role: "Secretaris" },
   { id: "3", name: "Xander D'Hondt", role: "Voorzitter externe werking"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
   { id: "5", name: "Bram Roden", role: "Workshopmaster" },
