@@ -1,0 +1,130 @@
+/* =============================================
+   TERMINAL CRT THEME - Custom Styles
+   =============================================
+   All terminal-specific visual effects and 
+   components used across the ISW Leuven site.
+   ============================================= */
+
+
+/* ----- Scanline Overlay -----
+   Fixed full-screen overlay that simulates 
+   CRT monitor scanlines */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 1px,
+    rgba(0, 0, 0, var(--scanline-opacity)) 1px,
+    rgba(0, 0, 0, var(--scanline-opacity)) 2px
+  );
+}
+
+
+/* ----- CRT Screen Flicker -----
+   Subtle opacity animation to mimic 
+   old CRT monitor flickering */
+.crt-flicker {
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  50% { opacity: 1; }
+  100% { opacity: 0.98; }
+}
+
+
+/* ----- Glowing Text -----
+   Green phosphor text glow effect */
+.text-glow {
+  text-shadow: var(--terminal-text-glow);
+}
+
+
+/* ----- Glowing Border -----
+   Green phosphor box glow effect */
+.border-glow {
+  box-shadow: var(--terminal-glow);
+}
+
+
+/* ----- Blinking Cursor -----
+   Classic terminal block cursor blink */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+
+/* ----- Typing Animation -----
+   Typewriter reveal effect for text */
+.typing-text {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 2s steps(40, end);
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+
+/* ----- Terminal Button -----
+   Command-line style button with 
+   '>' prefix on hover */
+.terminal-btn {
+  @apply relative overflow-hidden transition-all duration-200;
+}
+
+.terminal-btn::before {
+  content: '>';
+  @apply absolute left-2 opacity-0 transition-opacity duration-200;
+}
+
+.terminal-btn:hover::before {
+  @apply opacity-100;
+}
+
+.terminal-btn:hover {
+  @apply pl-6;
+  text-shadow: var(--terminal-text-glow);
+  box-shadow: var(--terminal-glow);
+}
+
+
+/* ----- Scroll Indicator Pulse -----
+   Pulsing glow for scroll-down prompts */
+.scroll-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    opacity: 0.5;
+    text-shadow: 0 0 5px hsl(120 100% 50% / 0.3);
+  }
+  50% { 
+    opacity: 1;
+    text-shadow: var(--terminal-text-glow);
+  }
+}
+
+
+/* ----- ASCII Art -----
+   Responsive monospace ASCII banner styling */
+.ascii-art {
+  @apply text-primary text-glow leading-none;
+  font-size: clamp(0.3rem, 1.5vw, 0.7rem);
+}

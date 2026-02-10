@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import './styles/terminal.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================
+   DESIGN TOKENS & BASE STYLES
+   ============================================= */
+
+@layer base {
+  /* ----- Color Tokens (HSL) ----- */
+  :root {
+    --background: 120 10% 4%;
+    --foreground: 120 100% 50%;
+    --card: 120 10% 6%;
+    --card-foreground: 120 100% 50%;
+    --popover: 120 10% 6%;
+    --popover-foreground: 120 100% 50%;
+    --primary: 120 100% 50%;
+    --primary-foreground: 120 10% 4%;
+    --secondary: 120 30% 15%;
+    --secondary-foreground: 120 100% 50%;
+    --muted: 120 20% 12%;
+    --muted-foreground: 120 60% 40%;
+    --accent: 120 100% 45%;
+    --accent-foreground: 120 10% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 120 50% 20%;
+    --input: 120 30% 15%;
+    --ring: 120 100% 50%;
+    --radius: 0px;
+
+    /* ----- Custom Glow Tokens ----- */
+    --terminal-glow: 0 0 10px hsl(120 100% 50% / 0.5), 0 0 20px hsl(120 100% 50% / 0.3), 0 0 30px hsl(120 100% 50% / 0.1);
+    --terminal-text-glow: 0 0 5px hsl(120 100% 50% / 0.8), 0 0 10px hsl(120 100% 50% / 0.5);
+    --scanline-opacity: 0.03;
+    --crt-curve: 2px;
+  }
+
+  /* ----- Dark Mode (same as default) ----- */
+  .dark {
+    --background: 120 10% 4%;
+    --foreground: 120 100% 50%;
+    --card: 120 10% 6%;
+    --card-foreground: 120 100% 50%;
+    --popover: 120 10% 6%;
+    --popover-foreground: 120 100% 50%;
+    --primary: 120 100% 50%;
+    --primary-foreground: 120 10% 4%;
+    --secondary: 120 30% 15%;
+    --secondary-foreground: 120 100% 50%;
+    --muted: 120 20% 12%;
+    --muted-foreground: 120 60% 40%;
+    --accent: 120 100% 45%;
+    --accent-foreground: 120 10% 4%;
+    --border: 120 50% 20%;
+    --input: 120 30% 15%;
+    --ring: 120 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-mono;
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* =============================================
+   UTILITY CLASSES
+   ============================================= */
+
+@layer utilities {
+  .container-terminal {
+    @apply w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
