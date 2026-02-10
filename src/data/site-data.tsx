@@ -1,4 +1,4 @@
-import { Calendar, BookOpen, Users, MessageSquare } from "lucide-react";
+import { Calendar, BookOpen, Users, MessageSquare, Home } from "lucide-react";
 import { ReactNode } from "react";
 
 // ============================================
@@ -37,6 +37,19 @@ export interface Resource {
   category: "exams" | "tools" | "courses";
 }
 
+export interface LokaalDetail {
+  id: string;
+  key: string;
+  value: string;
+}
+export interface LokaalBlock {
+  id: string;
+  title: string;
+  emoji: string;
+  details: LokaalDetail[];
+}
+
+
 // ============================================
 // NAVIGATION COMMANDS
 // ============================================
@@ -70,11 +83,14 @@ export const commands: Command[] = [
     icon: <MessageSquare className="w-5 h-5" />,
     href: "/contact",
   },
+  {
+    id: "lokaal",
+    label: "lokaal",
+    description: "Room info, 3D printer, food & more",
+    icon: <Home className="w-5 h-5" />,
+    href: "/lokaal",
+  },
 ];
-
-
-
-
 
 
 
@@ -185,3 +201,46 @@ export const resources: Resource[] = [
     category: "tools",
   },
 ];
+
+// ============================================
+// LOKAAL (ROOM) DETAILS
+// ============================================
+export const lokaalBlocks: LokaalBlock[] = [
+  {
+    id: "room",
+    title: "Room Status",
+    emoji: "🚪",
+    details: [
+      { id: "r1", key: "Open", value: "Maybe." },
+      { id: "r2", key: "Location", value: "Block B, Basement" },
+      { id: "r3", key: "Access", value: "Anyone if an active member is present" },
+    ],
+  },
+  {
+    id: "printer",
+    title: "3D Printer",
+    emoji: "🖨️",
+    details: [
+      { id: "p1", key: "Model", value: "???????????" },
+      { id: "p2", key: "Material", value: "Filament (???)" },
+      { id: "p3", key: "Cost", value: "€0.06/g for members, 29 euro something, fill put tomrrow" },
+      { id: "p4", key: "Booking", value: "Message the PR-meester" },
+    ],
+  },
+  {
+    id: "food",
+    title: "Food & Drinks PRICING IS BEING DISCUSSED",
+    emoji: "🍕",
+    details: [
+      { id: "f1", key: "Coffee/Tea", value: "Free for members" },
+      { id: "f2", key: "Snacks", value: " (honesty box)" },
+      { id: "f3", key: "Soft Drinks", value: "onesty box)" },
+      { id: "f4", key: "Microwave", value: "Available" },
+      { id: "f5", key: "Fridge", value: "Shared – label your items!" },
+      { id: "f6", key: "Food Policy", value: "Clean up after yourself, respect others' items" },
+      { id: "f7", key: "label this later", value: "labels later" },
+
+    ],
+  },
+];
+

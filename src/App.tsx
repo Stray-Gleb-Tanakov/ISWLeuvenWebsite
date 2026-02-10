@@ -5,6 +5,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
+import Lokaal from "./pages/Lokaal";
 
 const App = () => (
   <BrowserRouter>
@@ -14,6 +15,7 @@ const App = () => (
       <Route path="/about" element={<About />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/resources" element={<Resources />} />
+      <Route path="/lokaal" element={<Lokaal />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </BrowserRouter>
