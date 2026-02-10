@@ -1,7 +1,7 @@
-name: Package & Publish Website
+name: Package & Publish Dev Website
 on:
   push:
-    branches: [ BrANCHTEST ]
+    branches: [ dev, devbranch ]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,10 +18,10 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Build & Push
+    - name: Build & Push Dev Container
       uses: docker/build-push-action@v6
       with:
-        context: .           # Repo root ✓
-        file: ./Dockerfile   # Your file ✓
+        context: .
+        file: ./Dockerfile
         push: true
-        tags: ghcr.io/stray-gleb-tanakov/website-isw:latest
+        tags: ghcr.io/stray-gleb-tanakov/website-isw:dev
