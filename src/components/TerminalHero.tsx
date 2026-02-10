@@ -52,11 +52,7 @@ const TerminalHero = () => {
     <section className="min-h-screen flex flex-col items-center justify-center px-4 relative">
       {/* ASCII Logo */}
       {/* Logo */}
-      <img
-        src={iswLogo}
-        alt="ISW Leuven – Informatica Studentenwerking"
-        className="w-40 sm:w-56 invert opacity-80 mb-6"
-      />
+      
       <pre className="ascii-art hidden sm:block mb-8 select-none" aria-hidden="true">
         {ASCII_LOGO}
       </pre>
