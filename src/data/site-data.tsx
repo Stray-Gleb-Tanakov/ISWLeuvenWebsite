@@ -232,14 +232,17 @@ export const lokaalBlocks: LokaalBlock[] = [
     title: "Food & Drinks PRICING IS BEING DISCUSSED",
     emoji: "🍕",
     details: [
-      { id: "f1", key: "Coffee/Tea", value: "Free for members" },
-      { id: "f2", key: "Snacks", value: " (honesty box)" },
-      { id: "f3", key: "Soft Drinks", value: "onesty box)" },
-      { id: "f4", key: "Microwave", value: "Available" },
-      { id: "f5", key: "Fridge", value: "Shared – label your items!" },
-      { id: "f6", key: "Food Policy", value: "Clean up after yourself, respect others' items" },
-      { id: "f7", key: "label this later", value: "labels later" },
-
+      { id: "f1", key: "Aquarius Lemon/Red Peach 50 cl", value: "2.5 Euro for not members | 2 Euro for members" },
+      { id: "f2", key: "RODEO 25cl", value: "2.5 Euro for not members | 2 Euro for members" },
+      { id: "f3", key: "Small Aiki noodles Chicken/Curry/Hot&Spicy", value: "2 Euro for not members | 1.5 Euro for members" },
+      { id: "f4", key: "Dorito's", value: "2.5 Euro for not members | 2 Euro for members" },
+      { id: "f5", key: "Lay's Natural/Paprika/Salt&Pepper 40g", value: "1.5 Euro for not members | 1.2 Euro for members" },
+      { id: "f6", key: "Pads Coffee", value: "0.2 Euro for not members | 0.16 Euro for members" },
+      { id: "f7", key: "Pads Deca Coffee", value: "0.2 Euro for not members | 0.16 Euro for members" },
+      { id: "f8", key: "Senseo Extra Strong" , value: "0.4 Euro for not members | 0.32 Euro for members" },
+      { id: "f9", key: "Volle Melk", value: "Tijdelijk niet beschikbaar" },
+      { id: "f10", key: "Halfvolle Melk", value: "Tijdelijk niet beschikbaar" },
+      
     ],
   },
 ];
