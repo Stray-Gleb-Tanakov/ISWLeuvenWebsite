@@ -221,9 +221,9 @@ export const lokaalBlocks: LokaalBlock[] = [
     title: "3D Printer",
     emoji: "🖨️",
     details: [
-      { id: "p1", key: "Model", value: "???????????" },
-      { id: "p2", key: "Material", value: "Filament (???)" },
-      { id: "p3", key: "Cost", value: "€0.06/g for members, 29 euro something, fill put tomrrow" },
+      { id: "p1", key: "Model", value: "Bambu Lab A1" },
+      { id: "p2", key: "Material", value: "Filament (PLA black)" },
+      { id: "p3", key: "Cost", value: "€0.06/g for single use,if (member && pay_for_semester) 19 euro else 29 euro per school year" },
       { id: "p4", key: "Booking", value: "Message the PR-meester" },
     ],
   },
