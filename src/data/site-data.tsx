@@ -238,7 +238,7 @@ export const lokaalBlocks: LokaalBlock[] = [
   },
   {
     id: "food",
-    title: "Food & Drinks PRICING IS BEING DISCUSSED",
+    title: "Food & Drinks",
     emoji: "🍕",
     details: [
       { id: "f1", key: "Aquarius Lemon/Red Peach 50 cl", value: "2.5 Euro for not members | 2 Euro for members" },
