@@ -101,20 +101,28 @@ export const commands: Command[] = [
 export const events: Event[] = [
   {
     id: "1",
-    title: "TESTING",
-    date: "2025-02-15",
-    time: "20:00",
-    location: "campus connect",
-    description: "69420",
+    title: "Warmste Gamenight",
+    date: "2025-12-04",
+    time: "19:00-23:00",
+    location: "Campus Connect - Hemisfeer",
+    description: "in in videogames? Daag je vrienden uit in Mario Kart, Just Dance, FiFa en nog veel meer andere spelletjes! Liever bordspellen? We hebben een enorme selectie klaarstaan. Van MTG (Magic: The Gathering) Catan, Poker ♦️ en nog een hele hoop andere. Kom mee gamen, lachen en warmte verspreiden voor dit goede doel. Iedereen is welkom 🔥 ",
   },
   {
     id: "2",
-    title: "Testing again",
-    date: "2025-02-20",
-    time: "14:00",
-    location: "Library Room 3.14",
-    description: "Testing a different amount of text to see how it looks in the card layout. This should be enough to test the wrapping and spacing.",
-  }
+    title: "Github Workshop 1&2",
+    date: "Dates pending",
+    time: "Time pending",
+    location: "Location Pending",
+    description: "Explaining how Git, the best and worst thing ever works. We will cover the basics of version control, how to use Git for your projects, and how to collaborate with others using GitHub. Whether you're a beginner or just looking to brush up on your skills, this workshop will provide you with the knowledge and tools you need to effectively use Git and GitHub in your development workflow.",
+  },
+  {
+    id: "3",
+    title: "Pending",
+    date: "Pending",
+    time: "Pending",
+    location: "Pending",
+    description: "Also Pending",
+  },
 ];
 
 // ============================================
