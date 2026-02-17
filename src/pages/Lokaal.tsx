@@ -38,7 +38,7 @@ const Lokaal = () => (
         {/* Footer */}
         <footer className="mt-8 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            <span className="text-primary">TIP:</span> To update room info, edit the lokaalBlocks array in site-data.tsx.
+            <span className="text-primary"></span> 
           </p>
         </footer>
       </div>

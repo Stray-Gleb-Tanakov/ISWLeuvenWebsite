@@ -122,13 +122,14 @@ export const events: Event[] = [
 // ============================================
 
 export const boardMembers: BoardMember[] = [
-  { id: "1", name: "Willem Speetjens", role: "Penningmeester" },
+  { id: "1", name: "Willem Speetjens", role: "Penningmeester en Voorzitter externe werking" },
   { id: "2", name: "Thomas Peelman", role: "Secretaris" },
-  { id: "3", name: "Xander D'Hondt", role: "Voorzitter externe werking"},
+  { id: "3", name: "Xander D'Hondt", role: "Voorlopig in het buitenland op Stage"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
   { id: "5", name: "Bram Roden", role: "Workshopmaster" },
   { id: "6", name: "Gleb Tanakov", role: "Everything And Nothing"},
   { id: "7", name: "Jonas Van Bussel", role: "Sociale Media"},
+  { id: "8", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten." },
 ];
 
 // ============================================
