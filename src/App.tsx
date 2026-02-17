@@ -17,6 +17,7 @@ const App = () => (
       <Route path="/resources" element={<Resources />} />
       <Route path="/lokaal" element={<Lokaal />} />
       <Route path="*" element={<NotFound />} />
+      <Route path="/sponsor" element={<NotFound />} />
     </Routes>
   </BrowserRouter>
 );
