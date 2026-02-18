@@ -128,3 +128,18 @@
   @apply text-primary text-glow leading-none;
   font-size: clamp(0.3rem, 1.5vw, 0.7rem);
 }
+
+
+/* ----- Floating Code Windows -----
+   Slowly drifting code snippet windows */
+.floating-code-window {
+  animation: float-up linear forwards;
+}
+@keyframes float-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-120vh);
+  }
+}

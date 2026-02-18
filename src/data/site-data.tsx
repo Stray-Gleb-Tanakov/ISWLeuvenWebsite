@@ -255,4 +255,95 @@ export const lokaalBlocks: LokaalBlock[] = [
     ],
   },
 ];
+// ============================================
+// SPONSORS
+// ============================================
+
+export const sponsors: Sponsor[] = [
+  {
+    id: "1",
+    name: "KU Leuven",
+    description: "Host university",
+    url: "https://kuleuven.be",
+    emoji: "🏛️",
+  },
+  {
+    id: "2",
+    name: "VTK",
+    description: "Engineering student council",
+    url: "https://vtk.be",
+    emoji: "⚙️",
+  },
+  {
+    id: "3",
+    name: "Placeholder Sponsor",
+    description: "Your company here",
+    url: "#",
+    emoji: "🤝",
+  },
+];
+
+// ============================================
+// FLOATING CODE SNIPPETS
+// ============================================
+
+export const codeSnippets: CodeSnippet[] = [
+  {
+    id: "1",
+    filename: "hello.py",
+    code: `def greet(name):
+    return f"Hello, {name}!"
+print(greet("ISW"))`,
+  },
+  {
+    id: "2",
+    filename: "fibonacci.js",
+    code: `const fib = (n) =>
+  n <= 1 ? n
+  : fib(n-1) + fib(n-2);`,
+  },
+  {
+    id: "3",
+    filename: "main.rs",
+    code: `fn main() {
+    println!("ISW Leuven");
+    let x = 42;
+}`,
+  },
+  {
+    id: "4",
+    filename: "sort.c",
+    code: `void swap(int *a, int *b) {
+    int t = *a;
+    *a = *b;
+    *b = t;
+}`,
+  },
+  {
+    id: "5",
+    filename: "query.sql",
+    code: `SELECT name, role
+FROM praesidium
+WHERE active = true;`,
+  },
+  {
+    id: "6",
+    filename: "style.css",
+    code: `.terminal {
+  background: #0a0a0a;
+  color: #00ff00;
+  font-family: monospace;
+}`,
+  },
+  {id: "7",
+    filename: "app.jsx",
+    code: `import React from 'react';
+const App = () => <h1>ISW Leuven</h1>;
+export default App;`,
+  },
+  {id: "8",
+    filename: "data.json",
+    code: `{This is data you don't need to know.}`,
+  },
+];
 
