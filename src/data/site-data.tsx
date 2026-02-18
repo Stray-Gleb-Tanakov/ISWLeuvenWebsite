@@ -147,7 +147,7 @@ export const resources: Resource[] = [
     id: "1",
     title: "Examenwiki",
     description: "Collection of past exams and solutions",
-    url: "/NotFound",
+    url: "https://wiki.iswleuven.be",
     category: "exams",
   },
   {
