@@ -92,8 +92,6 @@ export const commands: Command[] = [
   },
 ];
 
-
-
 // ============================================
 // EVENTS
 // ============================================
@@ -262,20 +260,13 @@ export const lokaalBlocks: LokaalBlock[] = [
 export const sponsors: Sponsor[] = [
   {
     id: "1",
-    name: "KU Leuven",
+    name: "UCLL Leuven",
     description: "Host university",
-    url: "https://kuleuven.be",
+    url: "https://ucll.be",
     emoji: "🏛️",
   },
   {
     id: "2",
-    name: "VTK",
-    description: "Engineering student council",
-    url: "https://vtk.be",
-    emoji: "⚙️",
-  },
-  {
-    id: "3",
     name: "Placeholder Sponsor",
     description: "Your company here",
     url: "#",
