@@ -1,12 +1,13 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Router } from "react-router-dom";
 import Index from "./pages/Index";
 import Events from "./pages/Events";
-import Adult from ".pages/Adult";
+import Adult from "./pages/Adult";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
 import Lokaal from "./pages/Lokaal";
+import Catgirls from "./pages/Catgirls";
 
 const App = () => (
   <BrowserRouter>
@@ -20,6 +21,7 @@ const App = () => (
       <Route path="*" element={<NotFound />} />
       <Route path="/sponsor" element={<NotFound />} />
       <Route path="/adult" element={<Adult />} />
+      <Route path="/catgirls" element={<Catgirls />} />
     </Routes>
   </BrowserRouter>
 );
