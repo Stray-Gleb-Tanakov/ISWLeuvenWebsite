@@ -333,8 +333,14 @@ const App = () => <h1>ISW Leuven</h1>;
 export default App;`,
   },
   {id: "8",
-    filename: "data.json",
-    code: `{This is data you don't need to know.}`,
+    filename: "Pages.tsx",
+    code: `/about
+    /contact
+    /events
+    /resources
+    /lokaal
+    /adult
+    /catgirls`,
   },
 ];
 

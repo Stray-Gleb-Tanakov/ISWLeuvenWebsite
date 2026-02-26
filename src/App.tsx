@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Events from "./pages/Events";
+import Adult from ".pages/Adult";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Resources from "./pages/Resources";
@@ -18,6 +19,7 @@ const App = () => (
       <Route path="/lokaal" element={<Lokaal />} />
       <Route path="*" element={<NotFound />} />
       <Route path="/sponsor" element={<NotFound />} />
+      <Route path="/adult" element={<Adult />} />
     </Routes>
   </BrowserRouter>
 );
