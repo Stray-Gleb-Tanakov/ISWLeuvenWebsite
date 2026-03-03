@@ -39,6 +39,14 @@ src/
 | Add resource link | `src/data/site-data.tsx` → `resources` array |
 | Change nav buttons | `src/data/site-data.tsx` → `commands` array |
 | Change colors | `src/index.css` → `:root` variables |
+| Edit game maps | `src/game/data.ts` → `FLOOR_1/2/3` arrays |
+| Add game enemies | `src/game/data.ts` → `ENEMY_TEMPLATES` |
+| Edit game classes | `src/game/data.ts` → `CLASS_DATA` |
+| Tweak NPC dialogue | `src/game/data.ts` → `NPC_DIALOGUES` |
+| Edit game items | `src/game/data.ts` → `ITEM_TEMPLATES` |
+> **Game easter egg:** Enter the Konami Code (↑↑↓↓←→←→BA) on the homepage, or visit `/game` directly.
+>
+
 
 ---
 

@@ -8,6 +8,7 @@ import Resources from "./pages/Resources";
 import NotFound from "./pages/NotFound";
 import Lokaal from "./pages/Lokaal";
 import Catgirls from "./pages/Catgirls";
+import Game from "./pages/Game";
 
 const App = () => (
   <BrowserRouter>
@@ -22,6 +23,7 @@ const App = () => (
       <Route path="/sponsor" element={<NotFound />} />
       <Route path="/adult" element={<Adult />} />
       <Route path="/catgirls" element={<Catgirls />} />
+      <Route path="/game" element={<Game />} />
     </Routes>
   </BrowserRouter>
 );
