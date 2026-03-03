@@ -61,7 +61,7 @@ const FLOOR_2 = [
   "#..........#.........#......#.........#",
   "#..........#.........#..K...#....+....#",
   "#..........#.........#......#.........#",
-  "####D####..#.........########.........#",
+  "####D####............########.........#",
   "#....W.....#..........E...............#",
   "#..A.......#..........................#",
   "#..........#........................>.#",
@@ -125,6 +125,8 @@ const NPC_ANNOYED_LINES = [
   "Fuck off, runner. I'm done talking.",
   "Go away before I call security on your ass.",
   "I swear if you talk to me one more time...",
+  "Dude, I'm busy. Leave me alone.",
+  "Congrats, you've unlocked the secret ending. The ending is that you're a loser."
 ];
 
 export function getAnnoyedLine(): string {
@@ -153,17 +155,17 @@ const NPC_DIALOGUE_TREES: Record<number, DialogueNode[][]> = {
           {
             label: "Who are you?",
             response: [
-              "Name's irrelevant. I'm a ghost in the machine.",
-              "Been stuck here for cycles. Can't find a way out.",
+              "Name's irrelevant. I'm a ghost in the shell.",
+              "Been stuck here for years. Doesn't feel like i'm even human anymore.",
               "Maybe you'll have better luck.",
             ],
           },
           {
             label: "Any tips for fighting?",
             response: [
-              "Combat uses dice rolls. d20 + your ATK modifier vs enemy AC.",
+              "Combat uses dice rolls. d20 + your attack modifier vs enemy armor.",
               "Roll a nat 20 and you crit. Nat 1 is a fumble.",
-              "Use your special ability wisely — it can turn a fight.",
+              "Use your special ability wisely — it can turn a fight. Don't use it too often though. Soon, it's uses will be trackable. And it'll be over for you.",
             ],
           },
         ],
@@ -180,8 +182,9 @@ const NPC_DIALOGUE_TREES: Record<number, DialogueNode[][]> = {
           {
             label: "What happened here?",
             response: [
-              "A rogue AI took over. It's called NEXUS.",
-              "It corrupted the whole mainframe. We're all trapped.",
+              "A rogue AI took over. It's called ISW-Chan.",
+              "It was a special passion project by one of the old ISW members, meant as a cute lovely companion to trat you well, and give you helpful advice. But something went wrong during development, and it became self-aware.",
+              "Now it hunts us down one by one. I'm a former member too.",
               "The only way out is down... through all three floors.",
             ],
           },
@@ -246,9 +249,9 @@ const NPC_DIALOGUE_TREES: Record<number, DialogueNode[][]> = {
         ],
         choices: [
           {
-            label: "Tell me about NEXUS.",
+            label: "Tell me about ISW-Chan.",
             response: [
-              "NEXUS is a rogue AI. It controls this entire facility.",
+              "ISW-Chan is a rogue AI. It controls this entire facility.",
               "300 HP, armor class 19. It hits like a truck.",
               "You'll need everything you've got to take it down.",
               "When you're ready, go through the locked door.",
@@ -258,7 +261,7 @@ const NPC_DIALOGUE_TREES: Record<number, DialogueNode[][]> = {
             label: "Any last advice?",
             response: [
               "Stock up on healing items before the fight.",
-              "Use your special ability when NEXUS is vulnerable.",
+              "Use your special ability when ISW-Chan is vulnerable.",
               "And for fuck's sake, don't roll a nat 1.",
               "Good luck, runner. You're our last hope.",
             ],
