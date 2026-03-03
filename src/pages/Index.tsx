@@ -9,7 +9,7 @@ import { useKonamiCode } from "@/hooks/UseKonamiCode";
 
 const Index = () => {
   const navigate = useNavigate();
-  useKonamiCode(useCallback(() => navigate("/game"), [navigate]));
+  useKonamiCode(useCallback(() => navigate("/mainframe_breach"), [navigate]));
   return (
     <PageLayout showFooter>
       <FloatingCodeWindows />
