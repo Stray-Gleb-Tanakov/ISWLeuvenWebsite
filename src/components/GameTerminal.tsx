@@ -7,6 +7,7 @@ import { useReducer, useEffect, useRef, useCallback } from "react";
 import { gameReducer, createInitialState } from "@/game/engine";
 import { CLASS_DATA, FLOOR_NAMES } from "@/game/data";
 import type { ClassName, GameState, DialogueChoice } from "@/game/types";
+
 const VIEWPORT_W = 50;
 const VIEWPORT_H = 22;
 const FOG_RADIUS = 10;
@@ -109,8 +110,25 @@ function Legend() {
   );
 }
 
+/* ----- Dialogue choices UI ----- */
+function DialogueChoicesUI({ choices, dispatch }: { choices: DialogueChoice[]; dispatch: React.Dispatch<any> }) {
+  return (
+    <div className="space-y-1 mt-1">
+      {choices.map((choice, i) => (
+        <button
+          key={i}
+          onClick={() => dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: i })}
+          className="block w-full text-left font-mono text-xs px-2 py-1.5 border border-border hover:border-primary hover:text-primary transition-colors"
+        >
+          <span className="text-primary">[{i + 1}]</span> {choice.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ----- Mobile D-pad & action buttons ----- */
-function MobileControls({ mode, dispatch }: { mode: string; dispatch: React.Dispatch<any> }) {
+function MobileControls({ mode, dialogueChoices, dispatch }: { mode: string; dialogueChoices: DialogueChoice[] | null; dispatch: React.Dispatch<any> }) {
   const btn = "w-12 h-12 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-sm text-foreground select-none touch-manipulation";
   const actionBtn = "h-10 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-[10px] text-foreground select-none touch-manipulation px-3";
 
@@ -118,10 +136,8 @@ function MobileControls({ mode, dispatch }: { mode: string; dispatch: React.Disp
 
   return (
     <div className="mt-3 flex flex-col gap-3 md:hidden">
-      {/* Movement + Action Buttons side by side */}
       {(mode === "EXPLORE" || mode === "INVENTORY") && (
         <div className="flex items-center justify-between">
-          {/* D-pad */}
           <div className="grid grid-cols-3 gap-1 w-fit">
             <div />
             <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: 0, dy: -1 }); }}>▲</button>
@@ -133,7 +149,6 @@ function MobileControls({ mode, dispatch }: { mode: string; dispatch: React.Disp
             <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: 0, dy: 1 }); }}>▼</button>
             <div />
           </div>
-          {/* Side buttons */}
           <div className="flex flex-col gap-2">
             <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "TOGGLE_INVENTORY" }); }}>
               {mode === "INVENTORY" ? "CLOSE" : "INV"}
@@ -142,7 +157,6 @@ function MobileControls({ mode, dispatch }: { mode: string; dispatch: React.Disp
         </div>
       )}
 
-      {/* Combat buttons */}
       {mode === "COMBAT" && (
         <div className="flex gap-2 flex-wrap">
           <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "ATTACK" }); }}>⚔ ATK</button>
@@ -154,14 +168,22 @@ function MobileControls({ mode, dispatch }: { mode: string; dispatch: React.Disp
         </div>
       )}
 
-      {/* Dialogue */}
-      {mode === "DIALOGUE" && (
+      {mode === "DIALOGUE" && !dialogueChoices && (
         <button className={actionBtn + " w-full"} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "ADVANCE_DIALOGUE" }); }}>
-          ▶ CONTINUE
+          ▶ CLOSE
         </button>
       )}
 
-      {/* Game over / Win */}
+      {mode === "DIALOGUE" && dialogueChoices && (
+        <div className="flex gap-2 flex-wrap">
+          {dialogueChoices.map((_, i) => (
+            <button key={i} className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: i }); }}>
+              [{i + 1}]
+            </button>
+          ))}
+        </div>
+      )}
+
       {(mode === "GAME_OVER" || mode === "WIN") && (
         <button className={actionBtn + " w-full"} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "RESTART" }); }}>
           ↻ RESTART
@@ -222,7 +244,17 @@ const GameTerminal = () => {
           else if (key >= "1" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 1 });
           break;
         case "DIALOGUE":
-          if (key === "enter" || key === " ") dispatch({ type: "ADVANCE_DIALOGUE" });
+          if (state.dialogueChoices) {
+            // Number keys to select choices
+            if (key >= "1" && key <= "9") {
+              const idx = parseInt(key) - 1;
+              if (idx < state.dialogueChoices.length) {
+                dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: idx });
+              }
+            }
+          } else {
+            if (key === "enter" || key === " ") dispatch({ type: "ADVANCE_DIALOGUE" });
+          }
           break;
         case "INVENTORY":
           if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
@@ -234,7 +266,7 @@ const GameTerminal = () => {
           break;
       }
     },
-    [state.mode]
+    [state.mode, state.dialogueChoices]
   );
 
   const mapLines = state.mode === "EXPLORE" || state.mode === "INVENTORY" ? renderMap(state) : [];
@@ -246,9 +278,8 @@ const GameTerminal = () => {
       tabIndex={0}
       onKeyDown={handleKey}
       className="w-full max-w-5xl mx-auto font-mono text-xs outline-none focus:outline-none overflow-hidden"
-
     >
-         <div className="border border-border bg-card overflow-hidden">
+      <div className="border border-border bg-card overflow-hidden">
         {/* Title bar */}
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/80">
           <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
@@ -260,14 +291,14 @@ const GameTerminal = () => {
         </div>
 
         {/* Game content */}
-        <div className="p-3 space-y-2">
+        <div className="p-4 space-y-2">
           {state.mode === "CLASS_SELECT" && (
             <ClassSelect onSelect={(c) => dispatch({ type: "SELECT_CLASS", className: c })} />
           )}
 
           {mapLines.length > 0 && (
             <div>
-              <pre className="text-foreground leading-none tracking-widest text-[11px] select-none overflow-x-auto">
+              <pre className="text-foreground leading-none tracking-widest text-[11px] select-none overflow-hidden">
                 {mapLines.map((line, i) => (
                   <div key={i}>
                     {line.split("").map((ch, j) => (
@@ -281,7 +312,7 @@ const GameTerminal = () => {
           )}
 
           {state.player && (
-            <div className="text-primary text-glow text-[10px] border-t border-border pt-1 overflow-x-auto">
+            <div className="text-primary text-glow text-[10px] border-t border-border pt-1">
               {hud}
             </div>
           )}
@@ -293,9 +324,14 @@ const GameTerminal = () => {
             </div>
           )}
 
+          {/* Dialogue choices */}
+          {state.mode === "DIALOGUE" && state.dialogueChoices && (
+            <DialogueChoicesUI choices={state.dialogueChoices} dispatch={dispatch} />
+          )}
+
           <div
             ref={logRef}
-            className="h-32 overflow-y-auto border-t border-border pt-2 scroll-smooth"
+            className="h-44 overflow-y-auto border-t border-border pt-2 scroll-smooth game-log-scroll"
           >
             {state.log.map((line, i) => (
               <div
@@ -307,6 +343,8 @@ const GameTerminal = () => {
                     ? "text-yellow-400"
                     : line.startsWith("🎲")
                     ? "text-cyan-400"
+                    : line.startsWith(">") && !line.startsWith(">>")
+                    ? "text-accent-foreground font-bold"
                     : line.startsWith("═══")
                     ? "text-destructive font-bold"
                     : "text-foreground/80"
@@ -321,13 +359,14 @@ const GameTerminal = () => {
           <div className="text-muted-foreground text-[9px] border-t border-border pt-1 hidden md:block">
             {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | Enemies hunt you!"}
             {state.mode === "COMBAT" && "A: Attack (d20) | Q: Special | F: Flee | 1-9: Use Item"}
-            {state.mode === "DIALOGUE" && "Enter/Space: Continue"}
+            {state.mode === "DIALOGUE" && state.dialogueChoices && "1-" + state.dialogueChoices.length + ": Select response"}
+            {state.mode === "DIALOGUE" && !state.dialogueChoices && "Enter/Space: Close"}
             {state.mode === "INVENTORY" && "I: Close | 1-9: Use Item"}
             {(state.mode === "GAME_OVER" || state.mode === "WIN") && "R: Restart"}
           </div>
 
           {/* Mobile controls */}
-          <MobileControls mode={state.mode} dispatch={dispatch} />
+          <MobileControls mode={state.mode} dialogueChoices={state.dialogueChoices} dispatch={dispatch} />
         </div>
       </div>
     </div>
