@@ -110,9 +110,11 @@ export const FLOOR_MAPS = [FLOOR_1, FLOOR_2, FLOOR_3];
 
 /* ----- Enemy templates with AC (armor class) ----- */
 
-export const ENEMY_TEMPLATES: Record<number, { name: string; stats: Stats; xp: number; ac: number; loot?: Item }[]> = {
+export const ENEMY_TEMPLATES: Record<number, {
+  onHitEffect: StatusType; name: string; stats: Stats; xp: number; ac: number; loot?: Item 
+}[]> = {
   0: [
-    { name: "Security Drone", stats: { maxHp: 30, hp: 30, maxMp: 0, mp: 0, atk: 8, def: 3, spd: 5, int: 1 }, xp: 20, ac: 12 },
+    { name: "Security Drone", stats: { maxHp: 30, hp: 30, maxMp: 0, mp: 0, atk: 8, def: 3, spd: 5, int: 1 }, xp: 20, ac: 12, onHitEffect: "burn" },
     { name: "Corrupt Process", stats: { maxHp: 35, hp: 35, maxMp: 0, mp: 0, atk: 10, def: 2, spd: 7, int: 2 }, xp: 25, ac: 10, onHitEffect: "poison" },
   ],
   1: [
