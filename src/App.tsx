@@ -23,7 +23,7 @@ const App = () => (
       <Route path="/sponsor" element={<NotFound />} />
       <Route path="/adult" element={<Adult />} />
       <Route path="/catgirls" element={<Catgirls />} />
-      <Route path="/game" element={<Game />} />
+      <Route path="/mainframe_breach" element={<Game />} />
     </Routes>
   </BrowserRouter>
 );

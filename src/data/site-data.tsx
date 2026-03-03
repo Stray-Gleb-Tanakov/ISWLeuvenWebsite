@@ -460,5 +460,9 @@ export default App;`,
     /adult
     /catgirls`,
   },
+  {id: "9",
+    filename: "types.ts",
+    code: `Konami Code Hook — ↑↑↓↓←→←→BA
+  `}
 ];
 
