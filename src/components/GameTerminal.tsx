@@ -15,7 +15,7 @@ const FOG_RADIUS = 10;
 /* ----- Render ASCII map viewport around player ----- */
 function renderMap(state: GameState): string[] {
   if (!state.player) return [];
-  const { player, maps, enemies, npcs, groundItems, doors } = state;
+  const { player, maps, enemies, npcs, groundItems, doors, puzzles } = state;
   const map = maps[player.floor];
   const lines: string[] = [];
 
@@ -35,6 +35,8 @@ function renderMap(state: GameState): string[] {
       if (enemy) { row += enemy.isBoss ? "B" : "E"; continue; }
       const npc = npcs.find((n) => n.x === mx && n.y === my && n.floor === player.floor);
       if (npc) { row += "N"; continue; }
+      const puzzle = puzzles.find((p) => p.x === mx && p.y === my && p.floor === player.floor && !p.solved);
+      if (puzzle) { row += "T"; continue; }
       const gItem = groundItems.find((i) => i.x === mx && i.y === my && i.floor === player.floor && !i.picked);
       if (gItem) { row += gItem.type === "keycard" ? "K" : gItem.type === "weapon" ? "W" : gItem.type === "armor" ? "A" : "+"; continue; }
       const door = doors.find((d) => d.x === mx && d.y === my && d.floor === player.floor);
@@ -51,11 +53,15 @@ function renderMap(state: GameState): string[] {
 }
 
 /* ----- HUD status bar ----- */
-function renderHUD(state: GameState): string {
-  if (!state.player) return "";
+function renderHUD(state: GameState): string[] {
+  if (!state.player) return [];
   const p = state.player;
   const ac = 10 + Math.floor(p.stats.def / 2) + Math.floor(p.stats.spd / 4);
-  return `[${p.className}] LV:${p.level} HP:${p.stats.hp}/${p.stats.maxHp} ATK:${p.stats.atk} DEF:${p.stats.def} AC:${ac} XP:${p.xp}/${p.xpToNext} ${FLOOR_NAMES[p.floor]}`;
+  const lines = [
+    `[${p.className}] LV:${p.level} HP:${p.stats.hp}/${p.stats.maxHp} MP:${p.stats.mp}/${p.stats.maxMp} AC:${ac} ${FLOOR_NAMES[p.floor]}`,
+    `ATK:${p.stats.atk} DEF:${p.stats.def} XP:${p.xp}/${p.xpToNext}${p.stealthMode ? ` 🕶${p.stealth}` : ""}${p.comboCount > 0 ? ` ⚡x${p.comboCount}` : ""}${p.statusEffects.length > 0 ? " " + p.statusEffects.map(e => ({ poison: "☠", burn: "🔥", stun: "💫", slow: "🐌", bleed: "🩸" }[e.type] || "?")).join("") : ""}`,
+  ];
+  return lines;
 }
 
 /* ----- Class selection screen ----- */
@@ -73,17 +79,19 @@ function ClassSelect({ onSelect }: { onSelect: (c: ClassName) => void }) {
               onClick={() => onSelect(cls)}
               className="text-left p-3 border border-border hover:border-primary font-mono text-xs transition-colors group"
             >
-              <span className="text-primary group-hover:text-glow text-sm font-bold">
-                {cls}
-              </span>
+              <span className="text-primary group-hover:text-glow text-sm font-bold">{cls}</span>
               <br />
               <span className="text-muted-foreground">{data.desc}</span>
               <br />
               <span className="text-foreground/70">
-                HP:{s.maxHp} ATK:{s.atk} DEF:{s.def} SPD:{s.spd} INT:{s.int}
+                HP:{s.maxHp} MP:{s.maxMp} ATK:{s.atk} DEF:{s.def} SPD:{s.spd} INT:{s.int}
               </span>
               <br />
               <span className="text-primary/60">★ {data.special}</span>
+              <br />
+              <span className="text-muted-foreground/80">
+                Skills: {data.skills.map(sk => `${sk.name}(${sk.mpCost}MP)`).join(", ")}
+              </span>
             </button>
           );
         })}
@@ -105,7 +113,8 @@ function Legend() {
       <span className="text-blue-400">A</span>=Armor{" "}
       <span className="text-red-400">D</span>=Door{" "}
       <span className="text-primary">&gt;</span>=Stairs{" "}
-      <span className="text-purple-400">B</span>=Boss
+      <span className="text-purple-400">B</span>=Boss{" "}
+      <span className="text-amber-300">T</span>=Terminal
     </div>
   );
 }
@@ -128,9 +137,11 @@ function DialogueChoicesUI({ choices, dispatch }: { choices: DialogueChoice[]; d
 }
 
 /* ----- Mobile D-pad & action buttons ----- */
-function MobileControls({ mode, dialogueChoices, dispatch }: { mode: string; dialogueChoices: DialogueChoice[] | null; dispatch: React.Dispatch<any> }) {
+function MobileControls({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<any> }) {
   const btn = "w-12 h-12 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-sm text-foreground select-none touch-manipulation";
   const actionBtn = "h-10 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-[10px] text-foreground select-none touch-manipulation px-3";
+
+  const { mode, dialogueChoices } = state;
 
   if (mode === "CLASS_SELECT") return null;
 
@@ -153,6 +164,9 @@ function MobileControls({ mode, dialogueChoices, dispatch }: { mode: string; dia
             <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "TOGGLE_INVENTORY" }); }}>
               {mode === "INVENTORY" ? "CLOSE" : "INV"}
             </button>
+            <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "TOGGLE_STEALTH" }); }}>
+              {state.player?.stealthMode ? "🕶 ON" : "SNEAK"}
+            </button>
           </div>
         </div>
       )}
@@ -160,11 +174,14 @@ function MobileControls({ mode, dialogueChoices, dispatch }: { mode: string; dia
       {mode === "COMBAT" && (
         <div className="flex gap-2 flex-wrap">
           <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "ATTACK" }); }}>⚔ ATK</button>
-          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SPECIAL" }); }}>★ SPL</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SPECIAL" }); }}>★ Q</button>
+          {state.player?.skills.slice(1).map((sk, i) => (
+            <button key={i} className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SKILL", skillIndex: i + 1 }); }}>
+              {sk.name.substring(0, 4)}
+            </button>
+          ))}
           <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "FLEE" }); }}>🏃 FLEE</button>
-          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "USE_ITEM", itemIndex: 0 }); }}>1</button>
-          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "USE_ITEM", itemIndex: 1 }); }}>2</button>
-          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "USE_ITEM", itemIndex: 2 }); }}>3</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "USE_ITEM", itemIndex: 0 }); }}>USE1</button>
         </div>
       )}
 
@@ -181,6 +198,14 @@ function MobileControls({ mode, dialogueChoices, dispatch }: { mode: string; dia
               [{i + 1}]
             </button>
           ))}
+        </div>
+      )}
+
+      {mode === "PUZZLE" && (
+        <div className="flex gap-2 flex-wrap">
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_SUBMIT" }); }}>SUBMIT</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_BACKSPACE" }); }}>⌫</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_QUIT" }); }}>ESC</button>
         </div>
       )}
 
@@ -204,6 +229,7 @@ function charColor(ch: string): string {
   if (ch === "W") return "text-orange-400";
   if (ch === "A") return "text-blue-400";
   if (ch === "D") return "text-red-400";
+  if (ch === "T") return "text-amber-300";
   if (ch === ">") return "text-primary";
   if (ch === "█") return "text-border";
   if (ch === "░") return "text-muted-foreground/20";
@@ -236,16 +262,19 @@ const GameTerminal = () => {
           else if (key === "a" || key === "arrowleft") dispatch({ type: "MOVE", dx: -1, dy: 0 });
           else if (key === "d" || key === "arrowright") dispatch({ type: "MOVE", dx: 1, dy: 0 });
           else if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
+          else if (key === "x") dispatch({ type: "TOGGLE_STEALTH" });
           break;
         case "COMBAT":
           if (key === "a") dispatch({ type: "ATTACK" });
           else if (key === "q") dispatch({ type: "SPECIAL" });
           else if (key === "f") dispatch({ type: "FLEE" });
-          else if (key >= "1" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 1 });
+          else if (key === "1") dispatch({ type: "SKILL", skillIndex: 0 });
+          else if (key === "2") dispatch({ type: "SKILL", skillIndex: 1 });
+          else if (key === "3") dispatch({ type: "SKILL", skillIndex: 2 });
+          else if (key >= "4" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 4 });
           break;
         case "DIALOGUE":
           if (state.dialogueChoices) {
-            // Number keys to select choices
             if (key >= "1" && key <= "9") {
               const idx = parseInt(key) - 1;
               if (idx < state.dialogueChoices.length) {
@@ -260,6 +289,12 @@ const GameTerminal = () => {
           if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
           else if (key >= "1" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 1 });
           break;
+        case "PUZZLE":
+          if (key === "escape") dispatch({ type: "PUZZLE_QUIT" });
+          else if (key === "backspace") dispatch({ type: "PUZZLE_BACKSPACE" });
+          else if (key === "enter") dispatch({ type: "PUZZLE_SUBMIT" });
+          else if (key.length === 1 && key >= "a" && key <= "z") dispatch({ type: "PUZZLE_INPUT", char: key });
+          break;
         case "GAME_OVER":
         case "WIN":
           if (key === "r") dispatch({ type: "RESTART" });
@@ -270,7 +305,7 @@ const GameTerminal = () => {
   );
 
   const mapLines = state.mode === "EXPLORE" || state.mode === "INVENTORY" ? renderMap(state) : [];
-  const hud = renderHUD(state);
+  const hudLines = renderHUD(state);
 
   return (
     <div
@@ -312,15 +347,24 @@ const GameTerminal = () => {
           )}
 
           {state.player && (
-            <div className="text-primary text-glow text-[10px] border-t border-border pt-1">
-              {hud}
+            <div className="text-primary text-glow text-[10px] border-t border-border pt-1 space-y-0.5">
+              {hudLines.map((line, i) => <div key={i}>{line}</div>)}
             </div>
           )}
 
           {state.mode === "COMBAT" && state.currentEnemy && (
             <div className="text-destructive text-[10px] font-bold">
               ⚔ {state.currentEnemy.name} — HP: {state.currentEnemy.stats.hp}/{state.currentEnemy.stats.maxHp}
-              {" "}ATK:{state.currentEnemy.stats.atk} DEF:{state.currentEnemy.stats.def} AC:{state.currentEnemy.ac}
+              {" "}AC:{state.currentEnemy.ac}
+              {state.currentEnemy.statusEffects.length > 0 && " " + state.currentEnemy.statusEffects.map(e => ({ poison: "☠", burn: "🔥", stun: "💫", slow: "🐌", bleed: "🩸" }[e.type] || "?")).join("")}
+            </div>
+          )}
+
+          {/* Puzzle input display */}
+          {state.mode === "PUZZLE" && (
+            <div className="text-amber-300 text-sm font-bold font-mono border border-border p-2 bg-card/60">
+              <div>ANSWER: {state.puzzleInput}<span className="animate-pulse">_</span></div>
+              <div className="text-[10px] text-muted-foreground mt-1">Type answer · ENTER to submit · ESC to quit</div>
             </div>
           )}
 
@@ -357,16 +401,17 @@ const GameTerminal = () => {
 
           {/* Controls hint (desktop) */}
           <div className="text-muted-foreground text-[9px] border-t border-border pt-1 hidden md:block">
-            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | Enemies hunt you!"}
-            {state.mode === "COMBAT" && "A: Attack (d20) | Q: Special | F: Flee | 1-9: Use Item"}
+            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles"}
+            {state.mode === "COMBAT" && "A: Attack | Q: Special | 1-3: Skills | 4-9: Items | F: Flee"}
             {state.mode === "DIALOGUE" && state.dialogueChoices && "1-" + state.dialogueChoices.length + ": Select response"}
             {state.mode === "DIALOGUE" && !state.dialogueChoices && "Enter/Space: Close"}
             {state.mode === "INVENTORY" && "I: Close | 1-9: Use Item"}
+            {state.mode === "PUZZLE" && "Type answer | Enter: Submit | Esc: Quit"}
             {(state.mode === "GAME_OVER" || state.mode === "WIN") && "R: Restart"}
           </div>
 
           {/* Mobile controls */}
-          <MobileControls mode={state.mode} dialogueChoices={state.dialogueChoices} dispatch={dispatch} />
+          <MobileControls state={state} dispatch={dispatch} />
         </div>
       </div>
     </div>

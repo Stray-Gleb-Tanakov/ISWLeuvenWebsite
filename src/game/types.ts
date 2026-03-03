@@ -9,17 +9,37 @@ export type GameMode =
   | "DIALOGUE"
   | "INVENTORY"
   | "GAME_OVER"
-  | "WIN";
+  | "WIN"
+  | "PUZZLE";
 
 export type ClassName = "Netrunner" | "Cyborg" | "Ghost";
+
+/* ----- Status effects ----- */
+export type StatusType = "poison" | "burn" | "stun" | "slow" | "bleed";
+
+export interface StatusEffect {
+  type: StatusType;
+  turnsLeft: number;
+  damage?: number; // per-turn damage for DoTs
+}
 
 export interface Stats {
   maxHp: number;
   hp: number;
+  maxMp: number;
+  mp: number;
   atk: number;
   def: number;
   spd: number;
   int: number;
+}
+
+export interface Skill {
+  name: string;
+  mpCost: number;
+  cooldown: number;
+  currentCooldown: number;
+  description: string;
 }
 
 export interface Player {
@@ -33,6 +53,11 @@ export interface Player {
   y: number;
   floor: number;
   hasKeycard: boolean;
+  statusEffects: StatusEffect[];
+  skills: Skill[];
+  stealth: number;       // 0-100, stealth meter
+  stealthMode: boolean;  // actively sneaking
+  comboCount: number;    // consecutive hits for combo bonus
 }
 
 export interface Enemy {
@@ -48,23 +73,24 @@ export interface Enemy {
   loot?: Item;
   isBoss?: boolean;
   ac: number;
+  statusEffects: StatusEffect[];
+  onHitEffect?: StatusType; // enemies can inflict status effects
 }
 
 export interface Item {
   id: string;
   name: string;
   description: string;
-  type: "heal" | "weapon" | "keycard" | "emp" | "armor";
+  type: "heal" | "weapon" | "keycard" | "emp" | "armor" | "mana" | "antidote";
   value: number;
 }
 
-/* ----- Dialogue choice for interactive NPCs ----- */
+/* ----- Dialogue ----- */
 export interface DialogueChoice {
   label: string;
   response: string[];
 }
 
-/* ----- Dialogue node: NPC text + player choices ----- */
 export interface DialogueNode {
   npcText: string[];
   choices?: DialogueChoice[];
@@ -74,12 +100,12 @@ export interface NPC {
   id: string;
   name: string;
   symbol: string;
-  dialogue: string[]; // legacy flat dialogue (used for annoyed lines)
-  dialogueTree: DialogueNode[]; // interactive dialogue tree
+  dialogue: string[];
+  dialogueTree: DialogueNode[];
   x: number;
   y: number;
   floor: number;
-  talkCount: number; // how many times player talked to this NPC
+  talkCount: number;
 }
 
 export interface GroundItem extends Item {
@@ -96,6 +122,21 @@ export interface Door {
   locked: boolean;
 }
 
+/* ----- Puzzle ----- */
+export interface Puzzle {
+  id: string;
+  x: number;
+  y: number;
+  floor: number;
+  solved: boolean;
+  type: "caesar" | "reverse" | "substitution";
+  plainText: string;
+  cipherText: string;
+  hint: string;
+  reward: Item | null;
+  rewardXp: number;
+}
+
 export interface GameState {
   mode: GameMode;
   player: Player | null;
@@ -107,10 +148,13 @@ export interface GameState {
   currentEnemy: Enemy | null;
   currentNPC: NPC | null;
   dialogueIndex: number;
-  dialogueChoices: DialogueChoice[] | null; // currently shown choices
+  dialogueChoices: DialogueChoice[] | null;
   doors: Door[];
   turnCount: number;
   spawnTimer: number;
+  puzzles: Puzzle[];
+  currentPuzzle: Puzzle | null;
+  puzzleInput: string;
 }
 
 export type GameAction =
@@ -118,9 +162,15 @@ export type GameAction =
   | { type: "MOVE"; dx: number; dy: number }
   | { type: "ATTACK" }
   | { type: "SPECIAL" }
+  | { type: "SKILL"; skillIndex: number }
   | { type: "FLEE" }
   | { type: "USE_ITEM"; itemIndex: number }
   | { type: "ADVANCE_DIALOGUE" }
   | { type: "SELECT_DIALOGUE_CHOICE"; choiceIndex: number }
   | { type: "TOGGLE_INVENTORY" }
+  | { type: "TOGGLE_STEALTH" }
+  | { type: "PUZZLE_INPUT"; char: string }
+  | { type: "PUZZLE_SUBMIT" }
+  | { type: "PUZZLE_BACKSPACE" }
+  | { type: "PUZZLE_QUIT" }
   | { type: "RESTART" };
