@@ -1,6 +1,7 @@
 /* ====================================================
    CYBERPUNK TERMINAL RPG — Type Definitions
    ==================================================== */
+
 export type GameMode =
   | "CLASS_SELECT"
   | "EXPLORE"
@@ -9,7 +10,9 @@ export type GameMode =
   | "INVENTORY"
   | "GAME_OVER"
   | "WIN";
+
 export type ClassName = "Netrunner" | "Cyborg" | "Ghost";
+
 export interface Stats {
   maxHp: number;
   hp: number;
@@ -18,6 +21,7 @@ export interface Stats {
   spd: number;
   int: number;
 }
+
 export interface Player {
   className: ClassName;
   stats: Stats;
@@ -30,6 +34,7 @@ export interface Player {
   floor: number;
   hasKeycard: boolean;
 }
+
 export interface Enemy {
   id: string;
   name: string;
@@ -44,6 +49,7 @@ export interface Enemy {
   isBoss?: boolean;
   ac: number;
 }
+
 export interface Item {
   id: string;
   name: string;
@@ -51,28 +57,45 @@ export interface Item {
   type: "heal" | "weapon" | "keycard" | "emp" | "armor";
   value: number;
 }
+
+/* ----- Dialogue choice for interactive NPCs ----- */
+export interface DialogueChoice {
+  label: string;
+  response: string[];
+}
+
+/* ----- Dialogue node: NPC text + player choices ----- */
+export interface DialogueNode {
+  npcText: string[];
+  choices?: DialogueChoice[];
+}
+
 export interface NPC {
   id: string;
   name: string;
   symbol: string;
-  dialogue: string[];
+  dialogue: string[]; // legacy flat dialogue (used for annoyed lines)
+  dialogueTree: DialogueNode[]; // interactive dialogue tree
   x: number;
   y: number;
   floor: number;
-  talked: boolean;
+  talkCount: number; // how many times player talked to this NPC
 }
+
 export interface GroundItem extends Item {
   x: number;
   y: number;
   floor: number;
   picked: boolean;
 }
+
 export interface Door {
   x: number;
   y: number;
   floor: number;
   locked: boolean;
 }
+
 export interface GameState {
   mode: GameMode;
   player: Player | null;
@@ -84,10 +107,12 @@ export interface GameState {
   currentEnemy: Enemy | null;
   currentNPC: NPC | null;
   dialogueIndex: number;
+  dialogueChoices: DialogueChoice[] | null; // currently shown choices
   doors: Door[];
   turnCount: number;
   spawnTimer: number;
 }
+
 export type GameAction =
   | { type: "SELECT_CLASS"; className: ClassName }
   | { type: "MOVE"; dx: number; dy: number }
@@ -96,5 +121,6 @@ export type GameAction =
   | { type: "FLEE" }
   | { type: "USE_ITEM"; itemIndex: number }
   | { type: "ADVANCE_DIALOGUE" }
+  | { type: "SELECT_DIALOGUE_CHOICE"; choiceIndex: number }
   | { type: "TOGGLE_INVENTORY" }
   | { type: "RESTART" };

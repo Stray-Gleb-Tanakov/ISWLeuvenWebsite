@@ -3,7 +3,7 @@
    Maps, classes, enemies, items, NPCs
    ==================================================== */
 
-import type { ClassName, Stats, Enemy, NPC, GroundItem, Item, Door } from "./types";
+import type { ClassName, Stats, Enemy, NPC, GroundItem, Item, Door, DialogueNode } from "./types";
 
 /* ----- Class definitions ----- */
 
@@ -25,56 +25,46 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   },
 };
 
-/* ----- Floor maps -----
-   Legend:
-   # = wall    . = floor    @ = player start
-   > = stairs  D = locked door  K = keycard
-   + = health pack  W = weapon  A = armor
-   E = enemy   B = boss     N = NPC
-*/
+/* ----- Floor maps ----- */
 
 const FLOOR_1 = [
-  "#########################################################################################################",
-  "#@.....#........#.........#............#................................................................#",
-  "#......#........#.........#............#................................................................#",
-  "#......#...E....#....N....#.....+......#................................................................#",
-  "#......#........#.........#............#................................................................#",
-  "####.###........#.........####.#########................................................................#",
-  "#.......................................................................................................#",
-  "#.......E.................K.............................................................................#",
-  "#....................................E..................................................................#",
-  "#........######.########.#....................................................................###########",
-  "#........#....#.#......#.#.............................................................................>#",
-  "#........#.+..#.#..W...#.#....................................................................###########",
-  "#........#....#.#......#.#............`.......................................................#.........#",
-  "####D####................#######..............................................................#.........#",
-  "#....E.....#.........#.........#..............................................................#.........#",
-  "#..........#.........#.........#..............................................................#.........#",
-  "#..........#.........#.........#..............................................................###########",
-  "#........######.################........................................................................#",
-  "#..............................#.....N..................................................................#",
-  "#..E...........................#........................................................................#",
-  "#########################################################################################################",
+  "########################################",
+  "#@.....#........#.........#............#",
+  "#......#........#.........#............#",
+  "#......#...E....#....N....#.....+......#",
+  "#......#........#.........#............#",
+  "####.###........#.........####.#########",
+  "#..............................................#",
+  "#.......E.................K............#",
+  "#....................................E.#",
+  "#........######.########.#............#",
+  "#........#....#.#......#.#............#",
+  "#........#.+..#.#..W...#.#............#",
+  "#........#....#.#......#.#............#",
+  "#........######.########.#............#",
+  "#....................................N.#",
+  "#..E.................................>.#",
+  "########################################",
 ];
 
 const FLOOR_2 = [
   "########################################",
-  "#@.....#........#..........#....N.....#",
-  "#......#........#..E.......#..........#",
-  "#......####.#####..........####.#######",
-  "#...........#...#.............#.......#",
-  "#.######.####...#.######.###..#.###...#",
-  "#.#....#....#...#.#....#.#....#.#.....#",
-  "#.#.K..####.#...#.#.E..#.#.W..#.#..+..#",
-  "#.#....#....#...#.#....#.#....#.#.....#",
-  "#.######.####...#.######.###..#.###...#",
-  "#...............#.............#...E...#",
-  "#######.#########..D..#########.#######",
-  "#.....#.....N....#....#.......#.......#",
-  "#..E..#####.######....#.#####.#..A....#",
-  "#.....#...............#.....#.#.......#",
-  "#.....#...###########.#####.#.###.##..#",
-  "#.........#.................#....>.#..#",
+  "#@.........#.........#................#",
+  "#..........#.........#................#",
+  "#..........#....E....#.......N........#",
+  "#..........#.........#................#",
+  "#..........#.........#####.############",
+  "#..........#..........................#",
+  "####.######..........E................#",
+  "#..........#..........................#",
+  "#....E.....#.........#####.############",
+  "#..........#.........#......#.........#",
+  "#..........#.........#..K...#....+....#",
+  "#..........#.........#......#.........#",
+  "####D####..#.........########.........#",
+  "#....W.....#..........E...............#",
+  "#..A.......#..........................#",
+  "#..........#........................>.#",
   "########################################",
 ];
 
@@ -127,37 +117,162 @@ const BOSS_DATA = {
   ac: 19,
 };
 
-const NPC_DIALOGUES: Record<number, string[][]> = {
+/* ----- NPC Dialogue Trees (interactive) ----- */
+
+const NPC_ANNOYED_LINES = [
+  "Piss off, I already told you everything.",
+  "Are you glitched? I said everything I know.",
+  "Fuck off, runner. I'm done talking.",
+  "Go away before I call security on your ass.",
+  "I swear if you talk to me one more time...",
+];
+
+export function getAnnoyedLine(): string {
+  return NPC_ANNOYED_LINES[Math.floor(Math.random() * NPC_ANNOYED_LINES.length)];
+}
+
+const NPC_DIALOGUE_TREES: Record<number, DialogueNode[][]> = {
   0: [
+    // NPC 0 on floor 0
     [
-      ">>> ENCRYPTED TRANSMISSION <<<",
-      "They locked down the mainframe after the breach.",
-      "Find the KEYCARD to access the next level.",
-      "Watch out for security drones... they're everywhere.",
+      {
+        npcText: [
+          ">>> ENCRYPTED TRANSMISSION <<<",
+          "Hey runner... you look lost.",
+          "This mainframe is crawling with security.",
+        ],
+        choices: [
+          {
+            label: "Where's the exit?",
+            response: [
+              "The stairs are in the southeast corner.",
+              "But you'll need a KEYCARD to get past the locked doors.",
+              "Check the corridors — I saw one lying around.",
+            ],
+          },
+          {
+            label: "Who are you?",
+            response: [
+              "Name's irrelevant. I'm a ghost in the machine.",
+              "Been stuck here for cycles. Can't find a way out.",
+              "Maybe you'll have better luck.",
+            ],
+          },
+          {
+            label: "Any tips for fighting?",
+            response: [
+              "Combat uses dice rolls. d20 + your ATK modifier vs enemy AC.",
+              "Roll a nat 20 and you crit. Nat 1 is a fumble.",
+              "Use your special ability wisely — it can turn a fight.",
+            ],
+          },
+        ],
+      },
     ],
+    // NPC 1 on floor 0
     [
-      ">>> ANONYMOUS OPERATIVE <<<",
-      "The stairs down are in the southeast corner.",
-      "I left a health pack in the storage room. You'll need it.",
-      "Good luck, runner.",
+      {
+        npcText: [
+          ">>> ANONYMOUS OPERATIVE <<<",
+          "*cough* ...you're still alive? Impressive.",
+        ],
+        choices: [
+          {
+            label: "What happened here?",
+            response: [
+              "A rogue AI took over. It's called NEXUS.",
+              "It corrupted the whole mainframe. We're all trapped.",
+              "The only way out is down... through all three floors.",
+            ],
+          },
+          {
+            label: "Got any supplies?",
+            response: [
+              "I left a health pack in the storage room nearby.",
+              "It's not much, but it might keep you alive.",
+              "Trust me, you'll need it. These drones hit hard.",
+            ],
+          },
+        ],
+      },
     ],
   ],
   1: [
+    // NPC on floor 1
     [
-      ">>> GHOST_SIGNAL <<<",
-      "Floor 2... the ICE is thicker here.",
-      "There's a locked door — you need another keycard.",
-      "The weapons cache has some serious hardware.",
+      {
+        npcText: [
+          ">>> GHOST_SIGNAL <<<",
+          "Floor 2... the ICE is thicker here.",
+          "I can barely maintain this signal.",
+        ],
+        choices: [
+          {
+            label: "Where's the keycard?",
+            response: [
+              "Somewhere in the eastern corridors.",
+              "Careful though, the ICE Sentinels patrol that area.",
+              "They have high armor — you might want to use specials.",
+            ],
+          },
+          {
+            label: "Any weapons around?",
+            response: [
+              "There's a weapons cache behind the locked door.",
+              "Ironic, right? Need a key to get the weapons.",
+              "But there might be some loot on the western side too.",
+            ],
+          },
+          {
+            label: "How do I get to floor 3?",
+            response: [
+              "Stairs are in the far southeast, same as before.",
+              "But the enemies here are no joke.",
+              "Level up before you go down. Trust me.",
+            ],
+          },
+        ],
+      },
     ],
   ],
   2: [
+    // NPC on floor 2
     [
-      ">>> LAST_HUMAN <<<",
-      "You made it to the executive suite.",
-      "NEXUS is through the locked door at the bottom.",
-      "It's a rogue AI — it controls this entire facility.",
-      "Defeat it and the mainframe is yours.",
-      "Or die trying. No pressure.",
+      {
+        npcText: [
+          ">>> LAST_HUMAN <<<",
+          "You actually made it to the executive suite.",
+          "I didn't think anyone could get this far.",
+        ],
+        choices: [
+          {
+            label: "Tell me about NEXUS.",
+            response: [
+              "NEXUS is a rogue AI. It controls this entire facility.",
+              "300 HP, armor class 19. It hits like a truck.",
+              "You'll need everything you've got to take it down.",
+              "When you're ready, go through the locked door.",
+            ],
+          },
+          {
+            label: "Any last advice?",
+            response: [
+              "Stock up on healing items before the fight.",
+              "Use your special ability when NEXUS is vulnerable.",
+              "And for fuck's sake, don't roll a nat 1.",
+              "Good luck, runner. You're our last hope.",
+            ],
+          },
+          {
+            label: "I'm not ready yet.",
+            response: [
+              "Then get ready. Explore the rooms, find gear.",
+              "There's a weapon and armor scattered around.",
+              "Come back when you're geared up.",
+            ],
+          },
+        ],
+      },
     ],
   ],
 };
@@ -228,16 +343,17 @@ export function parseFloor(floor: number) {
           break;
         }
         case "N": {
-          const dialogues = NPC_DIALOGUES[floor] || [["..."]];
-          const dlg = dialogues[npcCount % dialogues.length];
+          const dialogueTrees = NPC_DIALOGUE_TREES[floor] || [[{ npcText: ["..."], choices: [] }]];
+          const tree = dialogueTrees[npcCount % dialogueTrees.length];
           npcs.push({
             id: `n${floor}-${npcCount}`,
             name: `NPC_${floor}_${npcCount}`,
             symbol: "N",
-            dialogue: dlg,
+            dialogue: [], // legacy, kept for compatibility
+            dialogueTree: tree,
             x, y,
             floor,
-            talked: false,
+            talkCount: 0,
           });
           npcCount++;
           cleaned += ".";

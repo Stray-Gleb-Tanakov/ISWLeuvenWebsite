@@ -6,11 +6,10 @@
 import { useReducer, useEffect, useRef, useCallback } from "react";
 import { gameReducer, createInitialState } from "@/game/engine";
 import { CLASS_DATA, FLOOR_NAMES } from "@/game/data";
-import type { ClassName, GameState } from "@/game/types";
-
-const VIEWPORT_W = 40;
-const VIEWPORT_H = 17;
-const FOG_RADIUS = 8;
+import type { ClassName, GameState, DialogueChoice } from "@/game/types";
+const VIEWPORT_W = 50;
+const VIEWPORT_H = 22;
+const FOG_RADIUS = 10;
 
 /* ----- Render ASCII map viewport around player ----- */
 function renderMap(state: GameState): string[] {

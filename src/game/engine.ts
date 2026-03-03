@@ -4,7 +4,7 @@
    ==================================================== */
 
 import type { GameState, GameAction, Player, Enemy } from "./types";
-import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy } from "./data";
+import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine } from "./data";
 
 /* ----- Dice rolling ----- */
 function rollD20(): number {
@@ -48,6 +48,7 @@ export function createInitialState(): GameState {
     currentEnemy: null,
     currentNPC: null,
     dialogueIndex: 0,
+    dialogueChoices: null,
     doors,
     turnCount: 0,
     spawnTimer: 8 + Math.floor(Math.random() * 5),
@@ -85,12 +86,10 @@ function checkLevelUp(player: Player, log: string[]): { player: Player; log: str
   return { player: p, log: newLog };
 }
 
-/* ----- Helper: attack hit modifier from stats ----- */
 function getHitMod(atk: number): number {
   return Math.floor(atk / 3);
 }
 
-/* ----- Helper: player attacks with d20 roll ----- */
 function playerAttackRoll(player: Player, enemy: Enemy): { hit: boolean; roll: number; total: number; damage: number; crit: boolean; msgs: string[] } {
   const roll = rollD20();
   const mod = getHitMod(player.stats.atk);
@@ -120,7 +119,6 @@ function playerAttackRoll(player: Player, enemy: Enemy): { hit: boolean; roll: n
   return { hit: false, roll, total, damage: 0, crit: false, msgs };
 }
 
-/* ----- Helper: enemy attacks with d20 roll ----- */
 function enemyAttackRoll(enemy: Enemy, player: Player): { player: Player; msgs: string[] } {
   const roll = rollD20();
   const mod = getHitMod(enemy.stats.atk);
@@ -152,7 +150,6 @@ function enemyAttackRoll(enemy: Enemy, player: Player): { player: Player; msgs: 
   return { player, msgs };
 }
 
-/* ----- Helper: tile walkable ----- */
 function isWalkable(state: GameState, x: number, y: number, floor: number): boolean {
   const map = state.maps[floor];
   if (y < 0 || y >= map.length) return false;
@@ -167,7 +164,6 @@ function isWalkable(state: GameState, x: number, y: number, floor: number): bool
   return true;
 }
 
-/* ----- Helper: is tile free of entities ----- */
 function isTileFree(state: GameState, x: number, y: number, floor: number): boolean {
   if (!isWalkable(state, x, y, floor)) return false;
   if (state.player && state.player.x === x && state.player.y === y && state.player.floor === floor) return false;
@@ -176,7 +172,6 @@ function isTileFree(state: GameState, x: number, y: number, floor: number): bool
   return true;
 }
 
-/* ----- Enemy AI: move enemies toward player, attack if adjacent ----- */
 const AGGRO_RANGE = 7;
 
 function moveEnemies(state: GameState): GameState {
@@ -188,34 +183,22 @@ function moveEnemies(state: GameState): GameState {
 
   const movedEnemies = state.enemies.map(e => {
     if (!e.alive || e.floor !== p.floor || combatEnemy) return e;
-
     const dist = Math.abs(e.x - newPlayer.x) + Math.abs(e.y - newPlayer.y);
-
-    // If adjacent, initiate combat
-    if (dist <= 1) {
-      combatEnemy = { ...e };
-      return e;
-    }
-
-    // If within aggro range, move toward player
+    if (dist <= 1) { combatEnemy = { ...e }; return e; }
     if (dist <= AGGRO_RANGE) {
       const dx = Math.sign(newPlayer.x - e.x);
       const dy = Math.sign(newPlayer.y - e.y);
-
-      // Try horizontal first, then vertical, then diagonal
       const moves = [
         { x: e.x + dx, y: e.y },
         { x: e.x, y: e.y + dy },
         { x: e.x + dx, y: e.y + dy },
       ].filter(m => dx !== 0 || m.x !== e.x || dy !== 0 || m.y !== e.y);
-
       for (const m of moves) {
         if (isTileFree({ ...state, player: newPlayer }, m.x, m.y, e.floor)) {
           return { ...e, x: m.x, y: m.y };
         }
       }
     }
-
     return e;
   });
 
@@ -240,21 +223,17 @@ function moveEnemies(state: GameState): GameState {
   return { ...state, enemies: movedEnemies, player: newPlayer, log };
 }
 
-/* ----- Random enemy spawning ----- */
 function trySpawnEnemy(state: GameState): GameState {
   if (!state.player) return state;
   const newTimer = state.spawnTimer - 1;
-
   if (newTimer > 0) return { ...state, spawnTimer: newTimer };
 
-  // Find a floor tile far enough from player
   const map = state.maps[state.player.floor];
   const attempts = 30;
   for (let i = 0; i < attempts; i++) {
     const ry = Math.floor(Math.random() * map.length);
     const rx = Math.floor(Math.random() * (map[ry]?.length ?? 0));
     const dist = Math.abs(rx - state.player.x) + Math.abs(ry - state.player.y);
-
     if (dist > 10 && dist < 20 && isTileFree(state, rx, ry, state.player.floor)) {
       const newEnemy = createRandomEnemy(state.player.floor, rx, ry, `${state.turnCount}`);
       return {
@@ -265,8 +244,7 @@ function trySpawnEnemy(state: GameState): GameState {
       };
     }
   }
-
-  return { ...state, spawnTimer: 3 }; // retry soon
+  return { ...state, spawnTimer: 3 };
 }
 
 /* ----- Main reducer ----- */
@@ -362,15 +340,36 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // Check for NPC at target
+      // Check for NPC at target — interactive dialogue
       const npc = state.npcs.find((n) => n.x === nx && n.y === ny && n.floor === p.floor);
       if (npc) {
+        const talkCount = npc.talkCount;
+        const updatedNpcs = state.npcs.map((n) =>
+          n.id === npc.id ? { ...n, talkCount: n.talkCount + 1 } : n
+        );
+
+        // After 3 conversations, NPC gets annoyed
+        if (talkCount >= 3) {
+          const annoyedLine = getAnnoyedLine();
+          return {
+            ...state,
+            npcs: updatedNpcs,
+            log: addLog(state, "", `${npc.name}: "${annoyedLine}"`, ""),
+          };
+        }
+
+        // Show first dialogue node with choices
+        const node = npc.dialogueTree[0];
+        if (!node) return state;
+
         return {
           ...state,
           mode: "DIALOGUE",
-          currentNPC: npc,
+          currentNPC: { ...npc, talkCount: talkCount + 1 },
           dialogueIndex: 0,
-          log: addLog(state, "", npc.dialogue[0]),
+          dialogueChoices: node.choices || null,
+          npcs: updatedNpcs,
+          log: addLog(state, "", ...node.npcText, ""),
         };
       }
 
@@ -457,7 +456,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats } };
       let log = [...state.log];
 
-      // Player attacks with d20
       const atkResult = playerAttackRoll(p, enemy);
       log.push(...atkResult.msgs);
 
@@ -466,50 +464,24 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         log.push(`[Enemy HP: ${Math.max(0, enemy.stats.hp)}/${enemy.stats.maxHp}]`);
       }
 
-      // Enemy defeated?
       if (enemy.stats.hp <= 0) {
         enemy.alive = false;
         p.xp += enemy.xpReward;
         log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
-
-        if (enemy.loot) {
-          p.inventory.push(enemy.loot);
-          log.push(`Loot: ${enemy.loot.name}`);
-        }
-
+        if (enemy.loot) { p.inventory.push(enemy.loot); log.push(`Loot: ${enemy.loot.name}`); }
         const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
-        const newEnemies = state.enemies.map((e) =>
-          e.id === enemy.id ? { ...e, alive: false } : e
-        );
-
+        const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
         if (enemy.isBoss) {
-          return {
-            ...state,
-            mode: "WIN",
-            player: lvlP,
-            enemies: newEnemies,
-            currentEnemy: null,
-            log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"],
-          };
+          return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"] };
         }
-
         return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
       }
 
-      // Enemy attacks back with d20
       const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
       log.push(...msgs);
-
       if (hitP.stats.hp <= 0) {
-        return {
-          ...state,
-          mode: "GAME_OVER",
-          player: hitP,
-          currentEnemy: null,
-          log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."],
-        };
+        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
       }
-
       return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-50) };
     }
 
@@ -520,7 +492,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats } };
       let log = [...state.log];
 
-      // Specials always hit but roll for bonus damage
       const bonusRoll = rollD20();
       let specialDmg = 0;
       switch (p.className) {
@@ -548,34 +519,17 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
         const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
         const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-
         if (enemy.isBoss) {
-          return {
-            ...state,
-            mode: "WIN",
-            player: lvlP,
-            enemies: newEnemies,
-            currentEnemy: null,
-            log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"],
-          };
+          return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"] };
         }
-
         return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
       }
 
       const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
       log.push(...msgs);
-
       if (hitP.stats.hp <= 0) {
-        return {
-          ...state,
-          mode: "GAME_OVER",
-          player: hitP,
-          currentEnemy: null,
-          log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."],
-        };
+        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
       }
-
       return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-50) };
     }
 
@@ -588,23 +542,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       log.push(`Flee roll: d20(${fleeRoll}) vs DC ${fleeTarget}`);
 
       if (fleeRoll >= fleeTarget) {
-        return {
-          ...state,
-          mode: "EXPLORE",
-          currentEnemy: null,
-          log: addLog({ ...state, log }, "You escaped!"),
-        };
+        return { ...state, mode: "EXPLORE", currentEnemy: null, log: addLog({ ...state, log }, "You escaped!") };
       }
       const { player: hitP, msgs } = enemyAttackRoll(state.currentEnemy, state.player);
       log.push("Failed to flee!", ...msgs);
       if (hitP.stats.hp <= 0) {
-        return {
-          ...state,
-          mode: "GAME_OVER",
-          player: hitP,
-          currentEnemy: null,
-          log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."],
-        };
+        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
       }
       return { ...state, player: hitP, log: log.slice(-50) };
     }
@@ -653,26 +596,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, player: p, log: log.slice(-50) };
     }
 
-    /* === DIALOGUE === */
+    /* === DIALOGUE: advance (no choices, just close) === */
     case "ADVANCE_DIALOGUE": {
-      if (state.mode !== "DIALOGUE" || !state.currentNPC) return state;
-      const nextIdx = state.dialogueIndex + 1;
-      if (nextIdx >= state.currentNPC.dialogue.length) {
-        const updatedNpcs = state.npcs.map((n) =>
-          n.id === state.currentNPC!.id ? { ...n, talked: true } : n
-        );
-        return {
-          ...state,
-          mode: "EXPLORE",
-          currentNPC: null,
-          npcs: updatedNpcs,
-          log: addLog(state, "[End of transmission]"),
-        };
-      }
+      if (state.mode !== "DIALOGUE") return state;
       return {
         ...state,
-        dialogueIndex: nextIdx,
-        log: addLog(state, state.currentNPC.dialogue[nextIdx]),
+        mode: "EXPLORE",
+        currentNPC: null,
+        dialogueChoices: null,
+        log: addLog(state, "[End of transmission]"),
+      };
+    }
+
+    /* === DIALOGUE: select a choice === */
+    case "SELECT_DIALOGUE_CHOICE": {
+      if (state.mode !== "DIALOGUE" || !state.dialogueChoices) return state;
+      const choice = state.dialogueChoices[action.choiceIndex];
+      if (!choice) return state;
+
+      return {
+        ...state,
+        dialogueChoices: null, // choices consumed, now show response
+        log: addLog(state, `> ${choice.label}`, "", ...choice.response, "", "[Press ENTER to close]"),
       };
     }
 
