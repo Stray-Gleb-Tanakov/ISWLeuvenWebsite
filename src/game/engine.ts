@@ -36,7 +36,7 @@ export function createInitialState(): GameState {
     maps: allMaps,
     log: [
       "╔══════════════════════════════════════╗",
-      "║   MAINFRAME BREACH — v2.0.0         ║",
+      "║   MAINFRAME BREACH — v2.0.0          ║",
       "║   A Cyberpunk Terminal RPG           ║",
       "║   Now with D&D-style dice rolls!     ║",
       "╚══════════════════════════════════════╝",
