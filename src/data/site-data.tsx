@@ -49,6 +49,35 @@ export interface LokaalBlock {
   details: LokaalDetail[];
 }
 
+export interface FoodItem {
+  id: string;
+  name: string;
+  priceNonMember: string;
+  priceMember: string;
+  available: boolean;
+}
+
+export interface FoodCategory {
+  id: string;
+  title: string;
+  emoji: string;
+  items: FoodItem[];
+}
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  emoji: string;
+}
+
+export interface CodeSnippet {
+  id: string;
+  filename: string;
+  code: string;
+}
+
 
 // ============================================
 // NAVIGATION COMMANDS
@@ -234,25 +263,114 @@ export const lokaalBlocks: LokaalBlock[] = [
       { id: "p4", key: "Booking", value: "Message the PR-meester" },
     ],
   },
+
+];
+
+// ============================================
+// FOOD & DRINKS
+// ============================================
+
+export const foodCategories: FoodCategory[] = [
   {
-    id: "food",
-    title: "Food & Drinks",
-    emoji: "🍕",
-    details: [
-      { id: "f1", key: "Aquarius Lemon/Red Peach 50 cl", value: "2.5 Euro for not members | 2 Euro for members" },
-      { id: "f2", key: "RODEO 25cl", value: "2.5 Euro for not members | 2 Euro for members" },
-      { id: "f3", key: "Small Aiki noodles Chicken/Curry/Hot&Spicy", value: "2 Euro for not members | 1.5 Euro for members" },
-      { id: "f4", key: "Dorito's", value: "2.5 Euro for not members | 2 Euro for members" },
-      { id: "f5", key: "Lay's Natural/Paprika/Salt&Pepper 40g", value: "1.5 Euro for not members | 1.2 Euro for members" },
-      { id: "f6", key: "Pads Coffee", value: "0.2 Euro for not members | 0.16 Euro for members" },
-      { id: "f7", key: "Pads Deca Coffee", value: "0.2 Euro for not members | 0.16 Euro for members" },
-      { id: "f8", key: "Senseo Extra Strong" , value: "0.4 Euro for not members | 0.32 Euro for members" },
-      { id: "f9", key: "Volle Melk", value: "Tijdelijk niet beschikbaar" },
-      { id: "f10", key: "Halfvolle Melk", value: "Tijdelijk niet beschikbaar" },
-      
+    id: "drinks",
+    title: "Drinks",
+    emoji: "🥤",
+    items: [
+      {
+        id: "d1",
+        name: "Aquarius Lemon/Red Peach 50cl",
+        priceNonMember: "€2.50",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "d2",
+        name: "RODEO 25cl",
+        priceNonMember: "€1.00",
+        priceMember: "€0.70",
+        available: true,
+      },
+      {
+        id: "d3",
+        name: "chcolate milk",
+        priceNonMember: "€1.50",
+        priceMember: "€1.00",
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "snacks",
+    title: "Snacks",
+    emoji: "🍟",
+    items: [
+      {
+        id: "s1",
+        name: "Small Aiki noodles Chicken/Curry/Hot&Spicy",
+        priceNonMember: "€2.00",
+        priceMember: "€1.50",
+        available: true,
+      },
+      {
+        id: "s2",
+        name: "Dorito's",
+        priceNonMember: "€2.50",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "s3",
+        name: "Lay's Natural/Paprika/Salt&Pepper 40g",
+        priceNonMember: "€1.20",
+        priceMember: "€1.00",
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "coffee",
+    title: "Coffee",
+    emoji: "☕",
+    items: [
+      {
+        id: "c1",
+        name: "Pads Coffee",
+        priceNonMember: "€0.20",
+        priceMember: "€0.16",
+        available: true,
+      },
+      {
+        id: "c2",
+        name: "Pads Deca Coffee",
+        priceNonMember: "€0.20",
+        priceMember: "€0.16",
+        available: true,
+      },
+      {
+        id: "c3",
+        name: "Senseo Extra Strong",
+        priceNonMember: "€0.40",
+        priceMember: "€0.32",
+        available: true,
+      },
+      {
+        id: "c4",
+        name: "Volle Melk",
+        priceNonMember: "N/A",
+        priceMember: "N/A",
+        available: false,
+      },
+      {
+        id: "c5",
+        name: "Halfvolle Melk",
+        priceNonMember: "N/A",
+        priceMember: "N/A",
+        available: false,
+      },
     ],
   },
 ];
+
 // ============================================
 // SPONSORS
 // ============================================
