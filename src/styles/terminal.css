@@ -161,3 +161,8 @@
 .game-log-scroll::-webkit-scrollbar {
   display: none; /* Chrome/Safari */
 }
+/* Hide scrollbars on the entire game page */
+.game-page-no-scroll {
+  overflow: hidden;
+  max-height: 100vh;
+}

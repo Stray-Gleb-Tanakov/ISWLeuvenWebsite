@@ -245,9 +245,10 @@ const GameTerminal = () => {
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleKey}
-      className="w-full max-w-4xl mx-auto font-mono text-xs outline-none focus:outline-none"
+      className="w-full max-w-5xl mx-auto font-mono text-xs outline-none focus:outline-none overflow-hidden"
+
     >
-      <div className="border border-border bg-card">
+         <div className="border border-border bg-card overflow-hidden">
         {/* Title bar */}
         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/80">
           <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
