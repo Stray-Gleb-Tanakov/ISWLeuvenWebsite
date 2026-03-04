@@ -41,23 +41,26 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
 };
 
 /* ----- Floor maps ----- */
+/* Legend: @ = start, E = enemy, B = boss, M = mini-boss, N = NPC,
+   T = terminal puzzle, D = locked door, > = stairs down,
+   + = health, K = keycard, W = weapon, A = armor, X = trap */
 
 const FLOOR_1 = [
-  "############################################################",
-  "#@.....#........#.........#................................#",
-  "#......#........#.........#................................#",
+  "########################################",
+  "#@.....#........#.........#............#",
+  "#......#........#.........#............#",
   "#......#...E....#....N....#.....+.....#",
-  "#......#........#.........#...........#",
+  "#......#........#.........#............#",
   "####.###........#.........####.########",
-  "#...........T..........................#",
-  "#.......E.................K...........#",
+  "#......................................#",
+  "#.......E.................K............#",
   "#....................................E.#",
-  "#........######.########.#...........#",
-  "#........#....#.#......#.#...........#",
-  "#........#.+..#.#..W...#.#...........#",
-  "#........#....#.#......#.#...........#",
-  "#........######.########.#...........#",
-  "#..............................T.....N.#",
+  "#........######.########.#............#",
+  "#........#....#.#......#.#............#",
+  "#........#.+..#.#..W...#.#............#",
+  "#........#....#.#......#.#....T.......#",
+  "#........######.########.#............#",
+  "#....................................N.#",
   "#..E.................................>.#",
   "########################################",
 ];
@@ -68,16 +71,16 @@ const FLOOR_2 = [
   "#..........#.........#................#",
   "#..........#....E....#.......N........#",
   "#..........#.........#................#",
-  "#..........#.........#####.############",
+  "#..........#.........#####.###########",
   "#..........#..........................#",
   "####.######..........E................#",
   "#..........#..........................#",
-  "#....E.....#.........#####.############",
+  "#....E.....#.........#####.###########",
   "#..........#.........#......#.........#",
   "#..........#.........#..K...#....+....#",
   "#..........#.........#......#.........#",
-  "####D####............########.........#",
-  "#....W.....#..........E...............#",
+  "####D####..#.........########.........#",
+  "#....W.....#..........E......T........#",
   "#..A.......#..........................#",
   "#..........#........................>.#",
   "########################################",
@@ -89,32 +92,118 @@ const FLOOR_3 = [
   "#......................................#",
   "#....N.................................#",
   "#......................................#",
-  "#.....######.######.######..........#",
-  "#.....#....#.#....#.#....#..........#",
-  "#.....#.E..#.#.+..#.#..W.#..........#",
-  "#.....#....#.#....#.#....#..........#",
-  "#.....######.######.######..........#",
+  "#.....######.######.######............#",
+  "#.....#....#.#....#.#....#............#",
+  "#.....#.E..#.#.+..#.#..W.#............#",
+  "#.....#....#.#....#.#....#............#",
+  "#.....######.######.######............#",
   "#......................................#",
-  "#.........E..........E................#",
+  "#.........E..........E.......T........#",
   "#......................................#",
   "####################D#################",
   "#......................................#",
-  "#..........+.......A.................#",
+  "#..........+.......A..................#",
+  "#..........X...........X..............#",
+  "#.....M................................#",
+  "#....................................>.#",
+  "########################################",
+];
+
+const FLOOR_4 = [
+  "########################################",
+  "#@.........X.........X................#",
   "#......................................#",
-  "#....................B................#",
+  "#....N...........E...........+........#",
+  "#......................................#",
+  "####.##########.####.#################",
+  "#..........#.......#.................X#",
+  "#..X.......#...E...#.........K........#",
+  "#..........#.......#..................#",
+  "#..........####D####..................#",
+  "#......................................#",
+  "#..E.............X.............E......#",
+  "#......................................#",
+  "#.....######.######...................#",
+  "#.....#.T..#.#..W.#.......N...........#",
+  "#.....#....#.#....#...................#",
+  "#.....######.######...................#",
+  "#......................................#",
+  "#.........A...........X...............#",
+  "#..X..........M.....................>.#",
+  "########################################",
+];
+
+const FLOOR_5 = [
+  "########################################",
+  "#@.....X.....X.....X.....X............#",
+  "#......................................#",
+  "#..N...................................#",
+  "#......................................#",
+  "###.########.########.################",
+  "#......#........#........#............#",
+  "#..E...#..X.E...#...E.X..#....+......#",
+  "#......#........#........#............#",
+  "#......####.####.####.####............#",
+  "#......................................#",
+  "#..........X....X....X................#",
+  "#.....T................................#",
+  "####D##################################",
+  "#......................................#",
+  "#..K...........W.......A..............#",
+  "#......X.....X.....X.....X............#",
+  "#......................................#",
+  "#...............M......................#",
+  "#....................................>.#",
+  "########################################",
+];
+
+const FLOOR_6 = [
+  "########################################",
+  "#@.....................................#",
+  "#......................................#",
+  "#....N.................................#",
+  "#......................................#",
+  "#......................................#",
+  "#.....+...........+...................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#......................................#",
+  "#....................B..................#",
   "#......................................#",
   "########################################",
 ];
 
-export const FLOOR_MAPS = [FLOOR_1, FLOOR_2, FLOOR_3];
+export const FLOOR_MAPS = [FLOOR_1, FLOOR_2, FLOOR_3, FLOOR_4, FLOOR_5, FLOOR_6];
 
-/* ----- Enemy templates with AC (armor class) ----- */
+/* ----- Trap definitions ----- */
 
-export const ENEMY_TEMPLATES: Record<number, {
-  onHitEffect: StatusType; name: string; stats: Stats; xp: number; ac: number; loot?: Item 
-}[]> = {
+export interface TrapData {
+  damage: number;
+  statusEffect?: StatusType;
+  message: string;
+}
+
+export const TRAP_DATA: Record<number, TrapData> = {
+  0: { damage: 5, message: "⚡ You stepped on an electric trap! -5 HP" },
+  1: { damage: 8, message: "⚡ Shock plate! -8 HP" },
+  2: { damage: 10, statusEffect: "poison", message: "☠ Poison gas trap! -10 HP + POISONED" },
+  3: { damage: 12, statusEffect: "burn", message: "🔥 Incendiary trap! -12 HP + BURNED" },
+  4: { damage: 15, statusEffect: "slow", message: "🐌 Cryo trap! -15 HP + SLOWED" },
+  5: { damage: 8, message: "⚡ Laser grid! -8 HP" },
+};
+
+/* ----- Enemy templates with status effects ----- */
+
+export const ENEMY_TEMPLATES: Record<number, { name: string; stats: Stats; xp: number; ac: number; loot?: Item; onHitEffect?: StatusType }[]> = {
   0: [
-    { name: "Security Drone", stats: { maxHp: 30, hp: 30, maxMp: 0, mp: 0, atk: 8, def: 3, spd: 5, int: 1 }, xp: 20, ac: 12, onHitEffect: "burn" },
+    { name: "Security Drone", stats: { maxHp: 30, hp: 30, maxMp: 0, mp: 0, atk: 8, def: 3, spd: 5, int: 1 }, xp: 20, ac: 12 },
     { name: "Corrupt Process", stats: { maxHp: 35, hp: 35, maxMp: 0, mp: 0, atk: 10, def: 2, spd: 7, int: 2 }, xp: 25, ac: 10, onHitEffect: "poison" },
   ],
   1: [
@@ -125,13 +214,47 @@ export const ENEMY_TEMPLATES: Record<number, {
     { name: "Rogue Agent", stats: { maxHp: 70, hp: 70, maxMp: 0, mp: 0, atk: 16, def: 8, spd: 9, int: 5 }, xp: 60, ac: 16, onHitEffect: "bleed" },
     { name: "Virus Cluster", stats: { maxHp: 60, hp: 60, maxMp: 0, mp: 0, atk: 20, def: 4, spd: 12, int: 8 }, xp: 65, ac: 13, onHitEffect: "poison" },
   ],
+  3: [
+    { name: "Biohazard Drone", stats: { maxHp: 80, hp: 80, maxMp: 0, mp: 0, atk: 18, def: 9, spd: 7, int: 6 }, xp: 75, ac: 17, onHitEffect: "poison" },
+    { name: "Gene Splicer", stats: { maxHp: 70, hp: 70, maxMp: 0, mp: 0, atk: 22, def: 5, spd: 11, int: 10 }, xp: 80, ac: 14, onHitEffect: "bleed" },
+  ],
+  4: [
+    { name: "Quantum Ghost", stats: { maxHp: 90, hp: 90, maxMp: 0, mp: 0, atk: 20, def: 12, spd: 10, int: 12 }, xp: 90, ac: 18, onHitEffect: "stun" },
+    { name: "Entropy Worm", stats: { maxHp: 85, hp: 85, maxMp: 0, mp: 0, atk: 24, def: 6, spd: 14, int: 9 }, xp: 95, ac: 15, onHitEffect: "burn" },
+  ],
+  5: [
+    { name: "NEXUS Shard", stats: { maxHp: 100, hp: 100, maxMp: 0, mp: 0, atk: 22, def: 14, spd: 8, int: 15 }, xp: 100, ac: 19, onHitEffect: "burn" },
+  ],
+};
+
+/* ----- Mini-boss templates ----- */
+
+const MINI_BOSS_TEMPLATES: Record<number, { name: string; stats: Stats; xp: number; ac: number; onHitEffect?: StatusType; loot: Item }> = {
+  2: {
+    name: "HYDRA — Bioweapon AI",
+    stats: { maxHp: 150, hp: 150, maxMp: 0, mp: 0, atk: 18, def: 10, spd: 7, int: 12 },
+    xp: 150, ac: 17, onHitEffect: "poison",
+    loot: { id: "mb2-loot", name: "Hydra Fang", description: "+6 ATK", type: "weapon", value: 6 },
+  },
+  3: {
+    name: "ORACLE — Prediction Engine",
+    stats: { maxHp: 180, hp: 180, maxMp: 0, mp: 0, atk: 20, def: 12, spd: 10, int: 16 },
+    xp: 180, ac: 18, onHitEffect: "stun",
+    loot: { id: "mb3-loot", name: "Oracle Shield", description: "+5 DEF", type: "armor", value: 5 },
+  },
+  4: {
+    name: "PHANTOM — Stealth Assassin",
+    stats: { maxHp: 200, hp: 200, maxMp: 0, mp: 0, atk: 24, def: 8, spd: 16, int: 14 },
+    xp: 220, ac: 19, onHitEffect: "bleed",
+    loot: { id: "mb4-loot", name: "Phantom Core", description: "Restores 50 HP + 50 MP", type: "heal", value: 50 },
+  },
 };
 
 const BOSS_DATA = {
   name: "NEXUS — Rogue AI",
-  stats: { maxHp: 300, hp: 300, maxMp: 0, mp: 0, atk: 22, def: 14, spd: 8, int: 18 },
-  xp: 300,
-  ac: 19,
+  stats: { maxHp: 400, hp: 400, maxMp: 0, mp: 0, atk: 28, def: 16, spd: 10, int: 22 },
+  xp: 500,
+  ac: 20,
   onHitEffect: "burn" as StatusType,
 };
 
@@ -341,11 +464,15 @@ const ITEM_TEMPLATES: Record<string, Item> = {
 };
 
 /* ----- Puzzle generation ----- */
+
 const PUZZLE_WORDS = [
   "NEXUS", "BREACH", "CIPHER", "GHOST", "VIRUS",
   "DRONE", "PROXY", "FLAME", "STACK", "CRYPT",
   "NERVE", "PULSE", "BLADE", "STEEL", "OMEGA",
 ];
+
+const VIGENERE_KEYS = ["KEY", "HACK", "CODE", "NET", "ICE"];
+
 function caesarEncrypt(text: string, shift: number): string {
   return text.split("").map(ch => {
     if (ch >= "A" && ch <= "Z") {
@@ -354,11 +481,12 @@ function caesarEncrypt(text: string, shift: number): string {
     return ch;
   }).join("");
 }
+
 function reverseString(text: string): string {
   return text.split("").reverse().join("");
 }
+
 function substitutionEncrypt(text: string): string {
-  // Simple shift-per-position
   return text.split("").map((ch, i) => {
     if (ch >= "A" && ch <= "Z") {
       return String.fromCharCode(((ch.charCodeAt(0) - 65 + i + 3) % 26) + 65);
@@ -366,12 +494,25 @@ function substitutionEncrypt(text: string): string {
     return ch;
   }).join("");
 }
+
+function vigenereEncrypt(text: string, key: string): string {
+  return text.split("").map((ch, i) => {
+    if (ch >= "A" && ch <= "Z") {
+      const shift = key.charCodeAt(i % key.length) - 65;
+      return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
+    }
+    return ch;
+  }).join("");
+}
+
 export function createPuzzle(floor: number, x: number, y: number, id: string): Puzzle {
   const word = PUZZLE_WORDS[Math.floor(Math.random() * PUZZLE_WORDS.length)];
-  const types: Array<"caesar" | "reverse" | "substitution"> = ["caesar", "reverse", "substitution"];
+  const types: Array<"caesar" | "reverse" | "substitution" | "vigenere"> = ["caesar", "reverse", "substitution", "vigenere"];
   const type = types[floor % types.length];
+
   let cipherText: string;
   let hint: string;
+
   switch (type) {
     case "caesar": {
       const shift = 3 + Math.floor(Math.random() * 10);
@@ -387,24 +528,38 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
       cipherText = substitutionEncrypt(word);
       hint = `Position-shifted cipher. Each letter shifts by (pos+3). Decrypt: ${cipherText}`;
       break;
+    case "vigenere": {
+      const key = VIGENERE_KEYS[Math.floor(Math.random() * VIGENERE_KEYS.length)];
+      cipherText = vigenereEncrypt(word, key);
+      hint = `Vigenère cipher, key="${key}". Decrypt: ${cipherText}`;
+      break;
+    }
   }
+
   const rewardItems: Item[] = [
     { id: `pr-${id}`, name: "Mana Cell", description: "Restores 30 MP", type: "mana", value: 30 },
     { id: `pr-${id}`, name: "NanoMed Kit+", description: "Restores 35 HP", type: "heal", value: 35 },
     { id: `pr-${id}`, name: "Antidote Patch", description: "Clears all status effects", type: "antidote", value: 0 },
   ];
+
   return {
-    id,
-    x, y, floor,
-    solved: false,
-    type,
-    plainText: word,
-    cipherText,
-    hint,
+    id, x, y, floor,
+    solved: false, type,
+    plainText: word, cipherText, hint,
     reward: rewardItems[Math.floor(Math.random() * rewardItems.length)],
     rewardXp: 20 + floor * 15,
   };
 }
+
+/* ----- Trap positions tracked per floor ----- */
+
+export interface TrapTile {
+  x: number;
+  y: number;
+  floor: number;
+  triggered: boolean;
+}
+
 export function parseFloor(floor: number) {
   const map = FLOOR_MAPS[floor];
   const enemies: Enemy[] = [];
@@ -412,6 +567,7 @@ export function parseFloor(floor: number) {
   const groundItems: GroundItem[] = [];
   const doors: Door[] = [];
   const puzzles: Puzzle[] = [];
+  const traps: TrapTile[] = [];
   let playerStart = { x: 1, y: 1 };
   let enemyCount = 0;
   let npcCount = 0;
@@ -434,37 +590,34 @@ export function parseFloor(floor: number) {
           const templates = ENEMY_TEMPLATES[floor] || ENEMY_TEMPLATES[0];
           const tmpl = templates[enemyCount % templates.length];
           enemies.push({
-            id: `e${floor}-${enemyCount}`,
-            name: tmpl.name,
-            symbol: "E",
-            stats: { ...tmpl.stats },
-            xpReward: tmpl.xp,
-            alive: true,
-            x, y,
-            floor,
-            loot: tmpl.loot,
-            ac: tmpl.ac,
-            statusEffects: [],
-            onHitEffect: tmpl.onHitEffect,
+            id: `e${floor}-${enemyCount}`, name: tmpl.name, symbol: "E",
+            stats: { ...tmpl.stats }, xpReward: tmpl.xp, alive: true,
+            x, y, floor, loot: tmpl.loot, ac: tmpl.ac,
+            statusEffects: [], onHitEffect: tmpl.onHitEffect,
           });
           enemyCount++;
           cleaned += ".";
           break;
         }
+        case "M": {
+          const mb = MINI_BOSS_TEMPLATES[floor];
+          if (mb) {
+            enemies.push({
+              id: `miniboss-${floor}`, name: mb.name, symbol: "M",
+              stats: { ...mb.stats }, xpReward: mb.xp, alive: true,
+              x, y, floor, loot: mb.loot, isBoss: true,
+              ac: mb.ac, statusEffects: [], onHitEffect: mb.onHitEffect,
+            });
+          }
+          cleaned += ".";
+          break;
+        }
         case "B": {
           enemies.push({
-            id: `boss-${floor}`,
-            name: BOSS_DATA.name,
-            symbol: "B",
-            stats: { ...BOSS_DATA.stats },
-            xpReward: BOSS_DATA.xp,
-            alive: true,
-            x, y,
-            floor,
-            isBoss: true,
-            ac: BOSS_DATA.ac,
-            statusEffects: [],
-            onHitEffect: BOSS_DATA.onHitEffect,
+            id: `boss-${floor}`, name: BOSS_DATA.name, symbol: "B",
+            stats: { ...BOSS_DATA.stats }, xpReward: BOSS_DATA.xp, alive: true,
+            x, y, floor, isBoss: true, ac: BOSS_DATA.ac,
+            statusEffects: [], onHitEffect: BOSS_DATA.onHitEffect,
           });
           cleaned += ".";
           break;
@@ -473,14 +626,8 @@ export function parseFloor(floor: number) {
           const dialogueTrees = NPC_DIALOGUE_TREES[floor] || [[{ npcText: ["..."], choices: [] }]];
           const tree = dialogueTrees[npcCount % dialogueTrees.length];
           npcs.push({
-            id: `n${floor}-${npcCount}`,
-            name: `NPC_${floor}_${npcCount}`,
-            symbol: "N",
-            dialogue: [], // legacy, kept for compatibility
-            dialogueTree: tree,
-            x, y,
-            floor,
-            talkCount: 0,
+            id: `n${floor}-${npcCount}`, name: `NPC_${floor}_${npcCount}`, symbol: "N",
+            dialogue: [], dialogueTree: tree, x, y, floor, talkCount: 0,
           });
           npcCount++;
           cleaned += ".";
@@ -490,6 +637,11 @@ export function parseFloor(floor: number) {
           puzzles.push(createPuzzle(floor, x, y, `p${floor}-${puzzleCount}`));
           puzzleCount++;
           cleaned += ".";
+          break;
+        }
+        case "X": {
+          traps.push({ x, y, floor, triggered: false });
+          cleaned += "."; // traps are walkable but hidden
           break;
         }
         case "D":
@@ -502,11 +654,8 @@ export function parseFloor(floor: number) {
         case "A": {
           const tmpl = ITEM_TEMPLATES[ch];
           groundItems.push({
-            ...tmpl,
-            id: `i${floor}-${itemCount}`,
-            x, y,
-            floor,
-            picked: false,
+            ...tmpl, id: `i${floor}-${itemCount}`,
+            x, y, floor, picked: false,
           });
           itemCount++;
           cleaned += ".";
@@ -519,7 +668,7 @@ export function parseFloor(floor: number) {
     return cleaned;
   });
 
-   return { cleanMap, enemies, npcs, groundItems, doors, puzzles, playerStart };
+  return { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps, playerStart };
 }
 
 /* ----- Floor names ----- */
@@ -527,6 +676,9 @@ export const FLOOR_NAMES = [
   "FLOOR 1 — Server Room",
   "FLOOR 2 — Research Lab",
   "FLOOR 3 — Executive Suite",
+  "FLOOR 4 — Biotech Lab",
+  "FLOOR 5 — Quantum Core",
+  "FLOOR 6 — NEXUS Chamber",
 ];
 
 /* ----- Random spawn helper ----- */
@@ -534,17 +686,10 @@ export function createRandomEnemy(floor: number, x: number, y: number, idSuffix:
   const templates = ENEMY_TEMPLATES[floor] || ENEMY_TEMPLATES[0];
   const tmpl = templates[Math.floor(Math.random() * templates.length)];
   return {
-    id: `spawn-${floor}-${idSuffix}`,
-    name: tmpl.name,
-    symbol: "E",
-    stats: { ...tmpl.stats },
-    xpReward: tmpl.xp,
-    alive: true,
-    x, y,
-    floor,
-    loot: tmpl.loot,
-    ac: tmpl.ac,
-    statusEffects: [],
-    onHitEffect: tmpl.onHitEffect,
+    id: `spawn-${floor}-${idSuffix}`, name: tmpl.name, symbol: "E",
+    stats: { ...tmpl.stats }, xpReward: tmpl.xp, alive: true,
+    x, y, floor, loot: tmpl.loot, ac: tmpl.ac,
+    statusEffects: [], onHitEffect: tmpl.onHitEffect,
   };
 }
+

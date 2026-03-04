@@ -129,12 +129,19 @@ export interface Puzzle {
   y: number;
   floor: number;
   solved: boolean;
-  type: "caesar" | "reverse" | "substitution";
+  type: "caesar" | "reverse" | "substitution" | "vigenere";
   plainText: string;
   cipherText: string;
   hint: string;
   reward: Item | null;
   rewardXp: number;
+}
+
+export interface TrapTile {
+  x: number;
+  y: number;
+  floor: number;
+  triggered: boolean;
 }
 
 export interface GameState {
@@ -155,6 +162,7 @@ export interface GameState {
   puzzles: Puzzle[];
   currentPuzzle: Puzzle | null;
   puzzleInput: string;
+  traps: TrapTile[];
 }
 
 export type GameAction =

@@ -3,8 +3,8 @@
    Mana, status effects, stealth, combos, puzzles
    ==================================================== */
 
-import type { GameState, GameAction, Player, Enemy, StatusEffect } from "./types";
-import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine } from "./data";
+import type { GameState, GameAction, Player, Enemy, StatusEffect, TrapTile } from "./types";
+import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine, TRAP_DATA } from "./data";
 
 /* ----- Dice rolling ----- */
 function rollD20(): number {
@@ -63,8 +63,9 @@ function hasStatus(effects: StatusEffect[], type: string): boolean {
 
 /* ----- Helper: create initial state ----- */
 export function createInitialState(): GameState {
-  const { cleanMap, enemies, npcs, groundItems, doors, puzzles } = parseFloor(0);
+  const { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps } = parseFloor(0);
   const allMaps = [cleanMap];
+  const allTraps: TrapTile[] = [...traps];
 
   for (let f = 1; f < FLOOR_MAPS.length; f++) {
     const parsed = parseFloor(f);
@@ -80,14 +81,15 @@ export function createInitialState(): GameState {
     maps: allMaps,
     log: [
       "╔══════════════════════════════════════╗",
-      "║   MAINFRAME BREACH — v3.0.0         ║",
+      "║   MAINFRAME BREACH — v4.0.0         ║",
       "║   A Cyberpunk Terminal RPG           ║",
-      "║   Mana · Status Effects · Stealth   ║",
-      "║   Combos · Puzzles · D&D Dice       ║",
+      "║   6 Floors · Mini-Bosses · Traps    ║",
+      "║   Vigenère Ciphers · D&D Dice       ║",
       "╚══════════════════════════════════════╝",
       "",
       "You wake up inside a corrupted mainframe.",
       "Your memories are fragmented. You must escape.",
+      "Six floors stand between you and freedom.",
       "Select your class to begin...",
     ],
     currentEnemy: null,
@@ -100,6 +102,7 @@ export function createInitialState(): GameState {
     puzzles,
     currentPuzzle: null,
     puzzleInput: "",
+    traps: allTraps,
   };
 }
 
@@ -523,6 +526,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // Check for trap
+      let newTraps = state.traps;
+      const trap = state.traps.find(t => t.x === nx && t.y === ny && t.floor === p.floor && !t.triggered);
+      if (trap) {
+        const trapInfo = TRAP_DATA[p.floor] || TRAP_DATA[0];
+        movedPlayer.stats = { ...movedPlayer.stats, hp: movedPlayer.stats.hp - trapInfo.damage };
+        newLog = addLog({ ...state, log: newLog }, trapInfo.message);
+        newTraps = state.traps.map(t => t === trap ? { ...t, triggered: true } : t);
+        if (trapInfo.statusEffect) {
+          const eff = { type: trapInfo.statusEffect, turnsLeft: 3, damage: trapInfo.statusEffect === "burn" ? 5 : trapInfo.statusEffect === "poison" ? 3 : 0 };
+          movedPlayer.statusEffects = [...movedPlayer.statusEffects, eff];
+        }
+        if (movedPlayer.stats.hp <= 0) {
+          return { ...state, mode: "GAME_OVER", player: movedPlayer, traps: newTraps, log: addLog({ ...state, log: newLog }, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart.") };
+        }
+      }
+
       // Check for stairs
       const map = state.maps[p.floor];
       if (map[ny]?.[nx] === ">") {
@@ -545,6 +565,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           groundItems: [...newGroundItems, ...parsed.groundItems],
           doors: [...state.doors, ...parsed.doors],
           puzzles: [...state.puzzles, ...parsed.puzzles],
+          traps: [...newTraps, ...parsed.traps],
           log: addLog({ ...state, log: newLog }, "", `>>> Descending to ${FLOOR_NAMES[nextFloor]} <<<`, ""),
           turnCount: state.turnCount + 1,
         };
@@ -555,6 +576,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         player: movedPlayer,
         groundItems: newGroundItems,
+        traps: newTraps,
         log: newLog,
         turnCount: state.turnCount + 1,
       };
@@ -620,8 +642,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         p = tickCooldowns(p);
         const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
         const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-        if (enemy.isBoss) {
+        if (enemy.isBoss && enemy.name.includes("NEXUS")) {
           return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"] };
+        }
+        if (enemy.isBoss) {
+          lvlLog.push(`>>> MINI-BOSS ${enemy.name} DEFEATED! <<<`);
+          if (enemy.loot) lvlLog.push(`Legendary loot: ${enemy.loot.name}!`);
         }
         return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
       }
@@ -689,7 +715,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         p.comboCount = 0;
         const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
         const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-        if (enemy.isBoss) {
+        if (enemy.isBoss && enemy.name.includes("NEXUS")) {
           return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "╚══════════════════════════════════════╝"] };
         }
         return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
