@@ -465,23 +465,38 @@ const ITEM_TEMPLATES: Record<string, Item> = {
 
 /* ----- Puzzle generation ----- */
 
-/* ----- Puzzle words scaled by difficulty ----- */
-const EASY_WORDS = ["NEXUS", "GHOST", "VIRUS", "DRONE", "FLAME", "BLADE", "STEEL"];
-const MEDIUM_WORDS = ["BREACH", "CIPHER", "PROXY", "CRYPT", "PULSE", "OMEGA", "VECTOR"];
-const HARD_WORDS = ["FIREWALL", "PROTOCOL", "MAINFRAME", "OVERFLOW", "DEADLOCK", "ROOTKIT"];
+/* ----- Puzzle words/phrases scaled by difficulty ----- */
+/* Answer is always in ISW{...} flag format */
+
+const EASY_WORDS = ["NEXUS", "GHOST", "VIRUS", "DRONE", "FLAME", "BLADE", "STEEL", "SHARD", "PULSE", "NERVE"];
+const MEDIUM_WORDS = ["BREACH", "CIPHER", "PROXY", "CRYPT", "VECTOR", "SHADOW", "KERNEL", "DAEMON", "SOCKET", "BYPASS"];
+const HARD_PHRASES = [
+  "FIREWALL_BREACH", "STACK_OVERFLOW", "DEAD_PROCESS", "ROOT_EXPLOIT",
+  "BUFFER_UNDERRUN", "KERNEL_PANIC", "DARK_PROTOCOL", "QUANTUM_LOCK",
+];
 const EXPERT_PHRASES = [
-  "ICE BREAKER", "NULL POINTER", "DEAD DROP", "ROOT ACCESS",
-  "ZERO DAY", "BACK DOOR", "DARK NET", "STACK TRACE",
+  "N3TW0RK_1NTRUS10N", "Z3R0_D4Y_3XPL01T", "R00T_4CC3SS_GR4NT3D",
+  "M41NFR4M3_BR34CH", "PR0T0C0L_0V3RR1D3", "D34D_C0D3_1NJ3CT10N",
+  "SH4D0W_PR0XY_4CT1V3", "QU4NTUM_F1R3W4LL",
+];
+const NIGHTMARE_PHRASES = [
+  "S3CUR1TY_THR0UGH_0BSCUR1TY", "1NT3GR4T3D_S3CUR1TY_W0RKS",
+  "CYPH3R_PUNK_N3V3R_D13S", "M4CH1N3_L34RN1NG_41",
+  "D1G1T4L_F0R3NS1CS_UN1T", "3NCRYPT10N_1S_N0T_4_CR1M3",
 ];
 
 const VIGENERE_KEYS_EASY = ["KEY", "ICE"];
 const VIGENERE_KEYS_HARD = ["HACK", "CODE", "NEXUS", "BREACH"];
+const VIGENERE_KEYS_EXPERT = ["MAINFRAME", "SECURITY", "PROTOCOL"];
 
 function pickWord(floor: number): string {
-  if (floor <= 1) return EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)];
-  if (floor <= 2) return MEDIUM_WORDS[Math.floor(Math.random() * MEDIUM_WORDS.length)];
-  if (floor <= 3) return HARD_WORDS[Math.floor(Math.random() * HARD_WORDS.length)];
-  return EXPERT_PHRASES[Math.floor(Math.random() * EXPERT_PHRASES.length)];
+  if (floor <= 0) return EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)];
+  if (floor <= 1) return MEDIUM_WORDS[Math.floor(Math.random() * MEDIUM_WORDS.length)];
+  if (floor <= 2) return HARD_PHRASES[Math.floor(Math.random() * HARD_PHRASES.length)];
+  if (floor <= 3) return EXPERT_PHRASES[Math.floor(Math.random() * EXPERT_PHRASES.length)];
+  if (floor <= 4) return NIGHTMARE_PHRASES[Math.floor(Math.random() * NIGHTMARE_PHRASES.length)];
+  // Floor 5+: nightmare with extra leetspeak
+  return NIGHTMARE_PHRASES[Math.floor(Math.random() * NIGHTMARE_PHRASES.length)];
 }
 
 /* ----- Cipher functions ----- */
@@ -489,6 +504,7 @@ function pickWord(floor: number): string {
 function caesarEncrypt(text: string, shift: number): string {
   return text.split("").map(ch => {
     if (ch >= "A" && ch <= "Z") return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
+    if (ch >= "0" && ch <= "9") return String.fromCharCode(((ch.charCodeAt(0) - 48 + shift) % 10) + 48);
     return ch;
   }).join("");
 }
@@ -547,20 +563,63 @@ function toBinary(text: string): string {
   return text.split("").map(ch => ch.charCodeAt(0).toString(2).padStart(8, "0")).join(" ");
 }
 
-type PuzzleType = "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double";
+/* ROT47: rotates printable ASCII 33-126 */
+function rot47Encrypt(text: string): string {
+  return text.split("").map(ch => {
+    const c = ch.charCodeAt(0);
+    if (c >= 33 && c <= 126) return String.fromCharCode(((c - 33 + 47) % 94) + 33);
+    return ch;
+  }).join("");
+}
+
+/* XOR with a single-byte key, output as hex */
+function xorEncrypt(text: string, key: number): string {
+  return text.split("").map(ch => (ch.charCodeAt(0) ^ key).toString(16).toUpperCase().padStart(2, "0")).join(" ");
+}
+
+/* Morse code */
+const MORSE_MAP: Record<string, string> = {
+  A: ".-", B: "-...", C: "-.-.", D: "-..", E: ".", F: "..-.", G: "--.",
+  H: "....", I: "..", J: ".---", K: "-.-", L: ".-..", M: "--", N: "-.",
+  O: "---", P: ".--.", Q: "--.-", R: ".-.", S: "...", T: "-",
+  U: "..-", V: "...-", W: ".--", X: "-..-", Y: "-.--", Z: "--..",
+  "0": "-----", "1": ".----", "2": "..---", "3": "...--", "4": "....-",
+  "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.",
+  "_": "..--.-",
+};
+function morseEncrypt(text: string): string {
+  return text.split("").map(ch => MORSE_MAP[ch] || ch).join(" / ");
+}
+
+/* Octal encoding */
+function toOctal(text: string): string {
+  return text.split("").map(ch => ch.charCodeAt(0).toString(8).padStart(3, "0")).join(" ");
+}
+
+/* Triple encoding: base64 → reverse → caesar */
+function tripleEncode(text: string, shift: number): string {
+  const b64 = btoa(text);
+  const rev = b64.split("").reverse().join("");
+  return caesarEncrypt(rev.toUpperCase(), shift);
+}
+
+type PuzzleType = "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double" | "rot47" | "xor" | "morse" | "octal" | "triple";
 
 /* Floor → available cipher types (harder as you go deeper) */
 const FLOOR_CIPHERS: PuzzleType[][] = [
-  /* 0 */ ["caesar", "reverse"],
-  /* 1 */ ["caesar", "substitution", "atbash"],
-  /* 2 */ ["substitution", "vigenere", "atbash"],
-  /* 3 */ ["vigenere", "railfence", "hex"],
-  /* 4 */ ["base64", "binary", "railfence", "double"],
-  /* 5 */ ["binary", "base64", "double", "vigenere"],
+  /* 0 */ ["caesar", "reverse", "atbash"],
+  /* 1 */ ["substitution", "atbash", "morse"],
+  /* 2 */ ["vigenere", "railfence", "hex", "rot47"],
+  /* 3 */ ["base64", "binary", "xor", "double"],
+  /* 4 */ ["morse", "octal", "triple", "xor", "vigenere"],
+  /* 5 */ ["triple", "xor", "binary", "rot47", "vigenere"],
 ];
 
 export function createPuzzle(floor: number, x: number, y: number, id: string): Puzzle {
-  const word = pickWord(floor);
+  const innerWord = pickWord(floor);
+  // The answer is always ISW{...} format
+  const flagAnswer = `ISW{${innerWord}}`;
+  // We encrypt only the inner word, player must type the full ISW{...} flag
   const available = FLOOR_CIPHERS[Math.min(floor, FLOOR_CIPHERS.length - 1)];
   const type = available[Math.floor(Math.random() * available.length)];
 
@@ -570,52 +629,76 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
   switch (type) {
     case "caesar": {
       const shift = 3 + floor * 2 + Math.floor(Math.random() * 8);
-      cipherText = caesarEncrypt(word, shift);
-      hint = `Caesar cipher, shift ${shift}. Decrypt: ${cipherText}`;
+      cipherText = caesarEncrypt(innerWord, shift);
+      hint = `Caesar cipher, shift ${shift}. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted_text}`;
       break;
     }
     case "reverse":
-      cipherText = reverseString(word);
-      hint = `Reversed text. Decrypt: ${cipherText}`;
+      cipherText = reverseString(innerWord);
+      hint = `Reversed text: ${cipherText}\nAnswer format: ISW{original_text}`;
       break;
     case "substitution":
-      cipherText = substitutionEncrypt(word);
-      hint = `Position-shifted cipher (each letter shifts by pos+3). Decrypt: ${cipherText}`;
+      cipherText = substitutionEncrypt(innerWord);
+      hint = `Position-shift cipher (letter[i] += i+3). Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     case "vigenere": {
-      const keys = floor >= 3 ? VIGENERE_KEYS_HARD : VIGENERE_KEYS_EASY;
+      const keys = floor >= 4 ? VIGENERE_KEYS_EXPERT : floor >= 2 ? VIGENERE_KEYS_HARD : VIGENERE_KEYS_EASY;
       const key = keys[Math.floor(Math.random() * keys.length)];
-      cipherText = vigenereEncrypt(word, key);
-      hint = `Vigenère cipher, key="${key}". Decrypt: ${cipherText}`;
+      cipherText = vigenereEncrypt(innerWord, key);
+      hint = `Vigenère cipher, key="${key}". Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "atbash":
-      cipherText = atbashEncrypt(word);
-      hint = `Atbash cipher (A↔Z, B↔Y, C↔X...). Decrypt: ${cipherText}`;
+      cipherText = atbashEncrypt(innerWord);
+      hint = `Atbash mirror cipher (A↔Z, B↔Y...). Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     case "railfence": {
-      const rails = 3;
-      cipherText = railFenceEncrypt(word, rails);
-      hint = `Rail Fence cipher, ${rails} rails. Decrypt: ${cipherText}`;
+      const rails = floor >= 3 ? 4 : 3;
+      cipherText = railFenceEncrypt(innerWord, rails);
+      hint = `Rail Fence cipher, ${rails} rails. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "base64":
-      cipherText = toBase64(word);
-      hint = `Base64 encoded. Decode: ${cipherText}`;
+      cipherText = toBase64(innerWord);
+      hint = `Base64 encoded: ${cipherText}\nAnswer format: ISW{decoded_text}`;
       break;
     case "hex":
-      cipherText = toHex(word);
-      hint = `Hex-encoded ASCII. Decode: ${cipherText}`;
+      cipherText = toHex(innerWord);
+      hint = `Hex-encoded ASCII: ${cipherText}\nAnswer format: ISW{decoded}`;
       break;
     case "binary":
-      cipherText = toBinary(word);
-      hint = `Binary-encoded ASCII. Decode: ${cipherText}`;
+      cipherText = toBinary(innerWord);
+      hint = `Binary ASCII: ${cipherText}\nAnswer format: ISW{decoded}`;
       break;
     case "double": {
       const shift = 5 + Math.floor(Math.random() * 8);
-      const step1 = caesarEncrypt(word, shift);
+      const step1 = caesarEncrypt(innerWord, shift);
       cipherText = reverseString(step1);
-      hint = `Double cipher: Caesar(shift ${shift}) then Reversed. Decrypt: ${cipherText}`;
+      hint = `Double: Caesar(shift ${shift}) → Reverse. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      break;
+    }
+    case "rot47":
+      cipherText = rot47Encrypt(innerWord);
+      hint = `ROT47 cipher (rotates printable ASCII by 47). Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      break;
+    case "xor": {
+      const xorKey = 42 + floor * 7;
+      cipherText = xorEncrypt(innerWord, xorKey);
+      hint = `XOR cipher, key=0x${xorKey.toString(16).toUpperCase()} (${xorKey}). Hex output: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      break;
+    }
+    case "morse":
+      cipherText = morseEncrypt(innerWord);
+      hint = `Morse code: ${cipherText}\nAnswer format: ISW{decoded_text}`;
+      break;
+    case "octal":
+      cipherText = toOctal(innerWord);
+      hint = `Octal-encoded ASCII: ${cipherText}\nAnswer format: ISW{decoded}`;
+      break;
+    case "triple": {
+      const shift = 3 + Math.floor(Math.random() * 5);
+      cipherText = tripleEncode(innerWord, shift);
+      hint = `Triple: Base64 → Reverse → Caesar(shift ${shift}). Encrypted: ${cipherText}\nAnswer format: ISW{original_text}`;
       break;
     }
   }
@@ -629,12 +712,11 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
   return {
     id, x, y, floor,
     solved: false, type,
-    plainText: word, cipherText, hint,
+    plainText: flagAnswer, cipherText, hint,
     reward: rewardItems[Math.floor(Math.random() * rewardItems.length)],
-    rewardXp: 25 + floor * 20,
+    rewardXp: 30 + floor * 25,
   };
 }
-
 
 /* ----- Trap positions tracked per floor ----- */
 

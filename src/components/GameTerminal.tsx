@@ -293,7 +293,7 @@ const GameTerminal = () => {
           if (key === "escape") dispatch({ type: "PUZZLE_QUIT" });
           else if (key === "backspace") dispatch({ type: "PUZZLE_BACKSPACE" });
           else if (key === "enter") dispatch({ type: "PUZZLE_SUBMIT" });
-          else if (key.length === 1 && key >= "a" && key <= "z") dispatch({ type: "PUZZLE_INPUT", char: key });
+          else if (key.length === 1 && /^[a-zA-Z0-9 {}_]$/.test(key)) dispatch({ type: "PUZZLE_INPUT", char: key });
           break;
         case "GAME_OVER":
         case "WIN":

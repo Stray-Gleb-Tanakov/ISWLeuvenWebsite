@@ -903,9 +903,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     /* === PUZZLE INPUT === */
     case "PUZZLE_INPUT": {
       if (state.mode !== "PUZZLE") return state;
-      const char = action.char.toUpperCase();
-      if (char === " " || (char.length === 1 && ((char >= "A" && char <= "Z") || (char >= "0" && char <= "9")))) {
-        return { ...state, puzzleInput: state.puzzleInput + char };
+       const char = action.char;
+      // Allow letters, digits, spaces, and ISW flag characters: { } _
+      const allowed = /^[A-Za-z0-9 {}_]$/;
+      if (char.length === 1 && allowed.test(char)) {
+        return { ...state, puzzleInput: state.puzzleInput + char.toUpperCase() };
       }
       return state;
     }
