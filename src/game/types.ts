@@ -129,7 +129,7 @@ export interface Puzzle {
   y: number;
   floor: number;
   solved: boolean;
-  type: "caesar" | "reverse" | "substitution" | "vigenere";
+  type: "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double";
   plainText: string;
   cipherText: string;
   hint: string;

@@ -904,7 +904,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case "PUZZLE_INPUT": {
       if (state.mode !== "PUZZLE") return state;
       const char = action.char.toUpperCase();
-      if (char.length === 1 && char >= "A" && char <= "Z") {
+      if (char === " " || (char.length === 1 && ((char >= "A" && char <= "Z") || (char >= "0" && char <= "9")))) {
         return { ...state, puzzleInput: state.puzzleInput + char };
       }
       return state;

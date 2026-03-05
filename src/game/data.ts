@@ -465,19 +465,30 @@ const ITEM_TEMPLATES: Record<string, Item> = {
 
 /* ----- Puzzle generation ----- */
 
-const PUZZLE_WORDS = [
-  "NEXUS", "BREACH", "CIPHER", "GHOST", "VIRUS",
-  "DRONE", "PROXY", "FLAME", "STACK", "CRYPT",
-  "NERVE", "PULSE", "BLADE", "STEEL", "OMEGA",
+/* ----- Puzzle words scaled by difficulty ----- */
+const EASY_WORDS = ["NEXUS", "GHOST", "VIRUS", "DRONE", "FLAME", "BLADE", "STEEL"];
+const MEDIUM_WORDS = ["BREACH", "CIPHER", "PROXY", "CRYPT", "PULSE", "OMEGA", "VECTOR"];
+const HARD_WORDS = ["FIREWALL", "PROTOCOL", "MAINFRAME", "OVERFLOW", "DEADLOCK", "ROOTKIT"];
+const EXPERT_PHRASES = [
+  "ICE BREAKER", "NULL POINTER", "DEAD DROP", "ROOT ACCESS",
+  "ZERO DAY", "BACK DOOR", "DARK NET", "STACK TRACE",
 ];
 
-const VIGENERE_KEYS = ["KEY", "HACK", "CODE", "NET", "ICE"];
+const VIGENERE_KEYS_EASY = ["KEY", "ICE"];
+const VIGENERE_KEYS_HARD = ["HACK", "CODE", "NEXUS", "BREACH"];
+
+function pickWord(floor: number): string {
+  if (floor <= 1) return EASY_WORDS[Math.floor(Math.random() * EASY_WORDS.length)];
+  if (floor <= 2) return MEDIUM_WORDS[Math.floor(Math.random() * MEDIUM_WORDS.length)];
+  if (floor <= 3) return HARD_WORDS[Math.floor(Math.random() * HARD_WORDS.length)];
+  return EXPERT_PHRASES[Math.floor(Math.random() * EXPERT_PHRASES.length)];
+}
+
+/* ----- Cipher functions ----- */
 
 function caesarEncrypt(text: string, shift: number): string {
   return text.split("").map(ch => {
-    if (ch >= "A" && ch <= "Z") {
-      return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
-    }
+    if (ch >= "A" && ch <= "Z") return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
     return ch;
   }).join("");
 }
@@ -488,34 +499,77 @@ function reverseString(text: string): string {
 
 function substitutionEncrypt(text: string): string {
   return text.split("").map((ch, i) => {
-    if (ch >= "A" && ch <= "Z") {
-      return String.fromCharCode(((ch.charCodeAt(0) - 65 + i + 3) % 26) + 65);
-    }
+    if (ch >= "A" && ch <= "Z") return String.fromCharCode(((ch.charCodeAt(0) - 65 + i + 3) % 26) + 65);
     return ch;
   }).join("");
 }
 
 function vigenereEncrypt(text: string, key: string): string {
-  return text.split("").map((ch, i) => {
+  let ki = 0;
+  return text.split("").map(ch => {
     if (ch >= "A" && ch <= "Z") {
-      const shift = key.charCodeAt(i % key.length) - 65;
+      const shift = key.charCodeAt(ki % key.length) - 65;
+      ki++;
       return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
     }
     return ch;
   }).join("");
 }
 
+function atbashEncrypt(text: string): string {
+  return text.split("").map(ch => {
+    if (ch >= "A" && ch <= "Z") return String.fromCharCode(90 - (ch.charCodeAt(0) - 65));
+    return ch;
+  }).join("");
+}
+
+function railFenceEncrypt(text: string, rails: number): string {
+  const fence: string[][] = Array.from({ length: rails }, () => []);
+  let rail = 0, dir = 1;
+  for (const ch of text) {
+    fence[rail].push(ch);
+    if (rail === 0) dir = 1;
+    if (rail === rails - 1) dir = -1;
+    rail += dir;
+  }
+  return fence.map(r => r.join("")).join("");
+}
+
+function toBase64(text: string): string {
+  return btoa(text);
+}
+
+function toHex(text: string): string {
+  return text.split("").map(ch => ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")).join(" ");
+}
+
+function toBinary(text: string): string {
+  return text.split("").map(ch => ch.charCodeAt(0).toString(2).padStart(8, "0")).join(" ");
+}
+
+type PuzzleType = "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double";
+
+/* Floor → available cipher types (harder as you go deeper) */
+const FLOOR_CIPHERS: PuzzleType[][] = [
+  /* 0 */ ["caesar", "reverse"],
+  /* 1 */ ["caesar", "substitution", "atbash"],
+  /* 2 */ ["substitution", "vigenere", "atbash"],
+  /* 3 */ ["vigenere", "railfence", "hex"],
+  /* 4 */ ["base64", "binary", "railfence", "double"],
+  /* 5 */ ["binary", "base64", "double", "vigenere"],
+];
+
 export function createPuzzle(floor: number, x: number, y: number, id: string): Puzzle {
-  const word = PUZZLE_WORDS[Math.floor(Math.random() * PUZZLE_WORDS.length)];
-  const types: Array<"caesar" | "reverse" | "substitution" | "vigenere"> = ["caesar", "reverse", "substitution", "vigenere"];
-  const type = types[floor % types.length];
+  const word = pickWord(floor);
+  const available = FLOOR_CIPHERS[Math.min(floor, FLOOR_CIPHERS.length - 1)];
+  const type = available[Math.floor(Math.random() * available.length)];
 
   let cipherText: string;
   let hint: string;
 
   switch (type) {
     case "caesar": {
-      const shift = 3 + Math.floor(Math.random() * 10);
+      const shift = 3 + floor * 2 + Math.floor(Math.random() * 8);
       cipherText = caesarEncrypt(word, shift);
       hint = `Caesar cipher, shift ${shift}. Decrypt: ${cipherText}`;
       break;
@@ -526,12 +580,42 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
       break;
     case "substitution":
       cipherText = substitutionEncrypt(word);
-      hint = `Position-shifted cipher. Each letter shifts by (pos+3). Decrypt: ${cipherText}`;
+      hint = `Position-shifted cipher (each letter shifts by pos+3). Decrypt: ${cipherText}`;
       break;
     case "vigenere": {
-      const key = VIGENERE_KEYS[Math.floor(Math.random() * VIGENERE_KEYS.length)];
+      const keys = floor >= 3 ? VIGENERE_KEYS_HARD : VIGENERE_KEYS_EASY;
+      const key = keys[Math.floor(Math.random() * keys.length)];
       cipherText = vigenereEncrypt(word, key);
       hint = `Vigenère cipher, key="${key}". Decrypt: ${cipherText}`;
+      break;
+    }
+    case "atbash":
+      cipherText = atbashEncrypt(word);
+      hint = `Atbash cipher (A↔Z, B↔Y, C↔X...). Decrypt: ${cipherText}`;
+      break;
+    case "railfence": {
+      const rails = 3;
+      cipherText = railFenceEncrypt(word, rails);
+      hint = `Rail Fence cipher, ${rails} rails. Decrypt: ${cipherText}`;
+      break;
+    }
+    case "base64":
+      cipherText = toBase64(word);
+      hint = `Base64 encoded. Decode: ${cipherText}`;
+      break;
+    case "hex":
+      cipherText = toHex(word);
+      hint = `Hex-encoded ASCII. Decode: ${cipherText}`;
+      break;
+    case "binary":
+      cipherText = toBinary(word);
+      hint = `Binary-encoded ASCII. Decode: ${cipherText}`;
+      break;
+    case "double": {
+      const shift = 5 + Math.floor(Math.random() * 8);
+      const step1 = caesarEncrypt(word, shift);
+      cipherText = reverseString(step1);
+      hint = `Double cipher: Caesar(shift ${shift}) then Reversed. Decrypt: ${cipherText}`;
       break;
     }
   }
@@ -547,9 +631,10 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
     solved: false, type,
     plainText: word, cipherText, hint,
     reward: rewardItems[Math.floor(Math.random() * rewardItems.length)],
-    rewardXp: 20 + floor * 15,
+    rewardXp: 25 + floor * 20,
   };
 }
+
 
 /* ----- Trap positions tracked per floor ----- */
 
