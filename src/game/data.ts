@@ -11,7 +11,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   Netrunner: {
     desc: "High INT hacker. Weak body, devastating exploits.",
     special: "ICE Breaker (2x INT damage, ignores DEF)",
-    stats: { maxHp: 50, hp: 50, maxMp: 80, mp: 80, atk: 5, def: 2, spd: 8, int: 14 },
+    stats: { maxHp: 120, hp: 120, maxMp: 200, mp: 200, atk: 5, def: 2, spd: 8, int: 16 },
     skills: [
       { name: "ICE Breaker", mpCost: 20, cooldown: 0, currentCooldown: 0, description: "2x INT pure damage" },
       { name: "Virus Upload", mpCost: 15, cooldown: 3, currentCooldown: 0, description: "Poisons enemy (3 turns)" },
@@ -21,7 +21,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   Cyborg: {
     desc: "Chrome-plated bruiser. Tanks hits, hits harder.",
     special: "Overclock (3x ATK, takes recoil damage)",
-    stats: { maxHp: 100, hp: 100, maxMp: 40, mp: 40, atk: 12, def: 8, spd: 4, int: 3 },
+    stats: { maxHp: 200, hp: 200, maxMp: 60, mp: 60, atk: 20, def: 8, spd: 4, int: 3 },
     skills: [
       { name: "Overclock", mpCost: 15, cooldown: 0, currentCooldown: 0, description: "3x ATK, recoil damage" },
       { name: "Chrome Slam", mpCost: 10, cooldown: 2, currentCooldown: 0, description: "Stuns enemy 1 turn" },
@@ -31,7 +31,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   Ghost: {
     desc: "Invisible operative. Fast, lethal, fragile.",
     special: "Backstab (guaranteed crit, 2.5x damage)",
-    stats: { maxHp: 70, hp: 70, maxMp: 60, mp: 60, atk: 9, def: 4, spd: 14, int: 7 },
+    stats: { maxHp: 150, hp: 150, maxMp: 120, mp: 120, atk: 15, def: 6, spd: 18, int: 9 },
     skills: [
       { name: "Backstab", mpCost: 18, cooldown: 0, currentCooldown: 0, description: "2.5x crit damage" },
       { name: "Smoke Bomb", mpCost: 12, cooldown: 3, currentCooldown: 0, description: "Guaranteed flee + stealth" },
