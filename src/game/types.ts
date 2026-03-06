@@ -129,7 +129,7 @@ export interface Puzzle {
   y: number;
   floor: number;
   solved: boolean;
-  type: "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double" | "rot47" | "xor" | "morse" | "octal" | "triple";
+  type: "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double" | "rot47" | "xor" | "morse" | "octal" | "triple" | "beaufort" | "affine" | "columnar" | "playfair" | "polybius" | "autokey" | "bacon" | "bifid" | "adfgvx" | "quadruple" | "nightmare";
   plainText: string;
   cipherText: string;
   hint: string;
