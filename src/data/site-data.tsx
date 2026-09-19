@@ -119,6 +119,13 @@ export const commands: Command[] = [
     icon: <Home className="w-5 h-5" />,
     href: "/lokaal",
   },
+  {
+    id: "members",
+    label: "members",
+    description: "View information about our members",
+    icon: <Users className="w-5 h-5" />,
+    href: "/members",
+  },
 ];
 
 // ============================================
