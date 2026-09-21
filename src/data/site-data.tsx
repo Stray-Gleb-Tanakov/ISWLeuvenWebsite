@@ -157,14 +157,14 @@ export const events: Event[] = [
 // ============================================
 
 export const boardMembers: BoardMember[] = [
-  { id: "1", name: "Willem Speetjens", role: "Penningmeester en Voorzitter externe werking" },
-  { id: "2", name: "Thomas Peelman", role: "Secretaris" },
-  { id: "3", name: "Xander D'Hondt", role: "Voorlopig in het buitenland op Stage"},
+  { id: "1", name: "Bryan Pao", role: "Penningmeester" },
+  { id: "2", name: "Thomas Peelman", role: "Voorzitter" },
+  { id: "3", name: "Simon Van Dooren", role: "Socials"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
   { id: "5", name: "Bram Roden", role: "Workshopmaster" },
-  { id: "6", name: "Gleb Tanakov", role: "Everything And Nothing"},
-  { id: "7", name: "Jonas Van Bussel", role: "Sociale Media"},
-  { id: "8", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten." },
+  { id: "6", name: "Gleb Tanakov", role: "Website & Events"},
+  { id: "7", name: "Jonas Van Bussel", role: "Secretaris"},
+  { id: "8", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten & Events" },
 ];
 
 // ============================================
@@ -302,35 +302,35 @@ export const foodCategories: FoodCategory[] = [
         name: "cola",
         priceNonMember: "€1.00",
         priceMember: "€1.20",
-        available: false,
+        available: true,
       },
       {
         id: "d5",
         name: "cola zero",
         priceNonMember: "€1.20",
         priceMember: "€1.00",
-        available: false,
+        available: true,
       },
       {
         id: "d6",
         name: "fanta",
         priceNonMember: "€1.20",
         priceMember: "€1.00",
-        available: false,
+        available: true,
       },
       {
         id: "d7",
         name: "monster energy",
         priceNonMember: "€2.00",
         priceMember: "€2.20",
-        available: false,
+        available: true,
       },
       {
         id: "d8",
         name: "monster energy wit",
         priceNonMember: "€2.20",
         priceMember: "€2.00",
-        available: false,
+        available: true,
       },
     ],
   },
@@ -411,6 +411,7 @@ export const foodCategories: FoodCategory[] = [
       },
     ],
   },
+  
 ];
 
 // ============================================
