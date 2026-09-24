@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Lokaal from "./pages/Lokaal";
 import Catgirls from "./pages/Catgirls";
 import Game from "./pages/Game";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const App = () => (
   <BrowserRouter>
@@ -24,6 +25,7 @@ const App = () => (
       <Route path="/adult" element={<Adult />} />
       <Route path="/catgirls" element={<Catgirls />} />
       <Route path="/mainframe_breach" element={<Game />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
     </Routes>
   </BrowserRouter>
 );
