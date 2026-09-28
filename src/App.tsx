@@ -25,7 +25,7 @@ const App = () => (
       <Route path="/adult" element={<Adult />} />
       <Route path="/catgirls" element={<Catgirls />} />
       <Route path="/mainframe_breach" element={<Game />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/privacypolicy" element={<PrivacyPolicy />} />
     </Routes>
   </BrowserRouter>
 );
