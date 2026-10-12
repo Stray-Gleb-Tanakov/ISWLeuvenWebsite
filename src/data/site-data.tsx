@@ -286,8 +286,8 @@ export const foodCategories: FoodCategory[] = [
       {
         id: "d1",
         name: "cola",
-        priceNonMember: "€1.00",
-        priceMember: "€1.20",
+        priceNonMember: "€1.20",
+        priceMember: "€1.00",
         available: true,
       },
       {
@@ -300,8 +300,8 @@ export const foodCategories: FoodCategory[] = [
       {
         id: "d3",
         name: "monster energy",
-        priceNonMember: "€2.00",
-        priceMember: "€2.20",
+        priceNonMember: "€2.20",
+        priceMember: "€2.00",
         available: true,
       },
       {
@@ -330,7 +330,7 @@ export const foodCategories: FoodCategory[] = [
         name: "Aquarius Lemon/Red Peach 50cl",
         priceNonMember: "€2.50",
         priceMember: "€2.00",
-        available: true,
+        available: false,
       },
       {
         id: "d8",
