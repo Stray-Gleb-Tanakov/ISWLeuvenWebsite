@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Lokaal from "./pages/Lokaal";
 import Catgirls from "./pages/Catgirls";
 import Game from "./pages/Game";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Members from "@/pages/Members.tsx";
 
 const App = () => (
@@ -25,6 +26,7 @@ const App = () => (
       <Route path="/adult" element={<Adult />} />
       <Route path="/catgirls" element={<Catgirls />} />
       <Route path="/mainframe_breach" element={<Game />} />
+      <Route path="/privacypolicy" element={<PrivacyPolicy />} />
       <Route path="/members" element={<Members />} />
     </Routes>
   </BrowserRouter>
