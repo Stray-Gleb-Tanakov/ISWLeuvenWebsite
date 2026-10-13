@@ -301,7 +301,7 @@ export const foodCategories: FoodCategory[] = [
         name: "fanta",
         priceNonMember: "€1.20",
         priceMember: "€1.00",
-        available: true,
+        available: false,
       },
       {
         id: "d3",
@@ -331,6 +331,13 @@ export const foodCategories: FoodCategory[] = [
         priceMember: "€1.00",
         available: false,
       },
+      {
+        id: "d10",
+        name: "Rodeo",
+        priceNonMember: "€1.00",
+        priceMember: "€0.80",
+        available: false,
+      }
     ],
   },
   {
@@ -350,14 +357,14 @@ export const foodCategories: FoodCategory[] = [
         name: "Dorito's",
         priceNonMember: "€2.50",
         priceMember: "€2.00",
-        available: false,
+        available: true,
       },
       {
         id: "s3",
-        name: "Lay's Natural/Paprika/Salt&Pepper 40g",
-        priceNonMember: "€1.20",
-        priceMember: "€1.00",
-        available: false,
+        name: "Bons Natural/Paprika/Salt&Pepper",
+        priceNonMember: "€1.25",
+        priceMember: "€2.00",
+        available: true,
       },
       {
         id: "s4",
@@ -408,6 +415,48 @@ export const foodCategories: FoodCategory[] = [
         priceMember: "N/A",
         available: false,
       },
+    ],
+  },
+  {
+    id: "Warm Food",
+    title: "Warm Food",
+    emoji: "🍲",
+    items: [
+      {
+        id: "wf1",
+        name: "Pizza",
+        priceNonMember: "€3.00",
+        priceMember: "€2.50",
+        available: true,
+      },
+      {
+        id: "wf2",
+        name: "Lasagna ",
+        priceNonMember: "€2.50",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "wf3",
+        name: "Lasagna Vegetale",
+        priceNonMember: "4.00",
+        priceMember: "€3.00",
+        available: true,
+      },
+      {
+        id: "wf4",
+        name: "Chicken Nuggets (5 pieces)",
+        priceNonMember: "1.50",
+        priceMember: "€1.00",
+        available: false,
+      },
+      {
+        id: "wf5",
+        name: "Mozzarella Sticks (5 pieces)",
+        priceNonMember: "€2.50",
+        priceMember: "€2.00",
+        available: false,
+      }
     ],
   },
   
