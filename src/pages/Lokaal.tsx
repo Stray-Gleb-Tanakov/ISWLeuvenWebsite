@@ -43,7 +43,7 @@ const FoodCard = ({ category }: { category: FoodCategory }) => (
               <td className="py-3 pr-4 text-foreground font-medium">
                 {item.name}
                 {!item.available && (
-                  <span className="ml-2 text-xs text-yellow-400 text-glow">(Tijdelijk niet beschikbaar)</span>
+                  <span className="ml-2 text-xs text-yellow-400 text-glow">(Temporarily Unavailable)</span>
                 )}
               </td>
               <td className="py-3 px-4 text-right text-muted-foreground">{item.priceNonMember}</td>

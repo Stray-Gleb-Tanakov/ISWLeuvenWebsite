@@ -126,6 +126,13 @@ export const commands: Command[] = [
     icon: <Users className="w-5 h-5" />,
     href: "/members",
   },
+  {
+    id: "Privacy Policy",
+    label: "Privacy Policy",
+    description: "View our privacy policy, we are GDPR compliant!",
+    icon: <Users className="w-5 h-5" />,
+    href: "/privacypolicy",
+  }
 ];
 
 // ============================================
@@ -143,20 +150,20 @@ export const events: Event[] = [
   },
   {
     id: "2",
-    title: "Github Workshop 1&2",
-    date: "Dates pending",
-    time: "Time pending",
-    location: "Location Pending",
+    title: "Github Workshop 1",
+    date: "2026-10-13",
+    time: "15:00-16:30",
+    location: "C106",
     description: "Explaining how Git, the best and worst thing ever works. We will cover the basics of version control, how to use Git for your projects, and how to collaborate with others using GitHub. Whether you're a beginner or just looking to brush up on your skills, this workshop will provide you with the knowledge and tools you need to effectively use Git and GitHub in your development workflow.",
   },
   {
     id: "3",
-    title: "Pending",
-    date: "Pending",
-    time: "Pending",
-    location: "Pending",
-    description: "Also Pending",
-  },
+    title: "Github Workshop 2",
+    date: "2026-10-14",
+    time: "15:00-16:30",
+    location: "C106",
+    description: "Explaining how Git, the best and worst thing ever works. We will cover the basics of version control, how to use Git for your projects, and how to collaborate with others using GitHub. Whether you're a beginner or just looking to brush up on your skills, this workshop will provide you with the knowledge and tools you need to effectively use Git and GitHub in your development workflow.",
+  }
 ];
 
 // ============================================
@@ -168,10 +175,9 @@ export const boardMembers: BoardMember[] = [
   { id: "2", name: "Thomas Peelman", role: "Voorzitter" },
   { id: "3", name: "Simon Van Dooren", role: "Socials"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
-  { id: "5", name: "Bram Roden", role: "Workshopmaster" },
-  { id: "6", name: "Gleb Tanakov", role: "Website & Events"},
-  { id: "7", name: "Jonas Van Bussel", role: "Secretaris"},
-  { id: "8", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten & Events" },
+  { id: "5", name: "Gleb Tanakov", role: "Website & Events"},
+  { id: "6", name: "Jonas Van Bussel", role: "Secretaris"},
+  { id: "7", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten & Events" },
 ];
 
 // ============================================
@@ -181,7 +187,7 @@ export const boardMembers: BoardMember[] = [
 export const resources: Resource[] = [
   {
     id: "1",
-    title: "Examenwiki",
+    title: "ExamWikipedia",
     description: "Collection of past exams and solutions",
     url: "https://wiki.iswleuven.be",
     category: "exams",
