@@ -175,7 +175,7 @@ export const boardMembers: BoardMember[] = [
   { id: "2", name: "Thomas Peelman", role: "Voorzitter" },
   { id: "3", name: "Simon Van Dooren", role: "Socials"},
   { id: "4", name: "Lander Goffings", role: "Systeembeheerder" },
-  { id: "5", name: "Gleb Tanakov", role: "Website & Events"},
+  { id: "5", name: "Gleb Tanakov", role: "PR-meester en Website + Events" },
   { id: "6", name: "Jonas Van Bussel", role: "Secretaris"},
   { id: "7", name: "Daniel Pereira", role: "Verantwoordelijke informatie buitenlandse studenten & Events" },
 ];
