@@ -43,7 +43,6 @@ const Members = () => (
         ...discount on food and drinks in the room,<br/>
         ...free use of the coffie table / microwave,<br/>
         ...playstation3 games,<br/>
-        ...free server space (1core, 1GB RAM, 10GB storage).<br/>
         - Networking with other students and professionals in the field of computer science
     </p>
 </div>
