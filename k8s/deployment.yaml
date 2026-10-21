@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: website
-          image: ghcr.io/OWNER/ISWLEUVENWEBSITE:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/Stray-Gleb-Tanakov/iswleuvenwebsite:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
           readinessProbe:
