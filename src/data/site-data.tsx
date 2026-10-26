@@ -312,7 +312,28 @@ export const foodCategories: FoodCategory[] = [
       },
       {
         id: "d4",
-        name: "monster energy pink",
+        name: "monster energy Pipeline Punch",
+        priceNonMember: "€2.20",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "d5",
+        name: "monster energy Ultra White",
+        priceNonMember: "€2.20",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "d6",
+        name: "monster energy Ultra Black",
+        priceNonMember: "€2.20",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "d7",
+        name: "monster energy Bad Apple",
         priceNonMember: "€2.20",
         priceMember: "€2.00",
         available: true,
@@ -424,7 +445,7 @@ export const foodCategories: FoodCategory[] = [
     items: [
       {
         id: "wf1",
-        name: "Pizza",
+        name: "Pizza: Hawaii, Speciale, Prosciutto, Mozarella, 4 Formaggi",
         priceNonMember: "€3.00",
         priceMember: "€2.50",
         available: true,
@@ -444,19 +465,34 @@ export const foodCategories: FoodCategory[] = [
         available: true,
       },
       {
-        id: "wf4",
-        name: "Chicken Nuggets (5 pieces)",
-        priceNonMember: "1.50",
-        priceMember: "€1.00",
-        available: false,
+          id: "wf4",
+        name: "Macaroni",
+        priceNonMember: "€4.50",
+        priceMember: "€4.0",
+        available: true,
       },
       {
         id: "wf5",
+        name: "Chicken Nuggets (6 pieces)",
+        priceNonMember: "2.50",
+        priceMember: "€2.00",
+        available: true,
+      },
+      {
+        id: "wf6",
+        name: "Chicken Fingers (8-10~ pieces)",
+        priceNonMember: "€3.50",
+        priceMember: "€3.00",
+        available: true,
+      },
+      {
+        id: "wf7",
         name: "Mozzarella Sticks (5 pieces)",
         priceNonMember: "€2.50",
         priceMember: "€2.00",
         available: false,
-      }
+      },
+
     ],
   },
   
