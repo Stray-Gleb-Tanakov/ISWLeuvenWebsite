@@ -306,7 +306,7 @@ export const foodCategories: FoodCategory[] = [
       {
         id: "d3",
         name: "monster energy",
-        priceNonMember: "€2.20",
+        priceNonMember: "€2.50",
         priceMember: "€2.00",
         available: true,
       },
