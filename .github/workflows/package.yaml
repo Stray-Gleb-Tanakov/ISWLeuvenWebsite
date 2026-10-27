@@ -1,7 +1,7 @@
 name: Package & Publish Website
 on:
   push:
-    branches: [ BrANCHTEST ]
+    branches: [ main ]
 jobs:
   build:
     runs-on: ubuntu-latest
