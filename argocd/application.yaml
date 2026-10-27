@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Stray-Gleb-Tanakov/ISWLeuvenWebsite.git
-    targetRevision: BrANCHTEST
+    targetRevision: main
     path: k8s
   destination:
     server: https://kubernetes.default.svc
