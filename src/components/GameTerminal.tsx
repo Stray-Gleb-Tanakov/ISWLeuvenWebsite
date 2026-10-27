@@ -1,0 +1,421 @@
+/* ====================================================
+   CYBERPUNK TERMINAL RPG — Game Terminal Component
+   ASCII renderer + keyboard input + mobile controls
+   ==================================================== */
+
+import { useReducer, useEffect, useRef, useCallback } from "react";
+import { gameReducer, createInitialState } from "@/game/engine";
+import { CLASS_DATA, FLOOR_NAMES } from "@/game/data";
+import type { ClassName, GameState, DialogueChoice } from "@/game/types";
+
+const VIEWPORT_W = 50;
+const VIEWPORT_H = 22;
+const FOG_RADIUS = 10;
+
+/* ----- Render ASCII map viewport around player ----- */
+function renderMap(state: GameState): string[] {
+  if (!state.player) return [];
+  const { player, maps, enemies, npcs, groundItems, doors, puzzles } = state;
+  const map = maps[player.floor];
+  const lines: string[] = [];
+
+  const startX = Math.max(0, player.x - Math.floor(VIEWPORT_W / 2));
+  const startY = Math.max(0, player.y - Math.floor(VIEWPORT_H / 2));
+
+  for (let vy = 0; vy < VIEWPORT_H; vy++) {
+    const my = startY + vy;
+    let row = "";
+    for (let vx = 0; vx < VIEWPORT_W; vx++) {
+      const mx = startX + vx;
+      if (my >= map.length || mx >= (map[my]?.length ?? 0)) { row += " "; continue; }
+      const dist = Math.sqrt((mx - player.x) ** 2 + (my - player.y) ** 2);
+      if (dist > FOG_RADIUS) { row += "░"; continue; }
+      if (mx === player.x && my === player.y) { row += "@"; continue; }
+      const enemy = enemies.find((e) => e.x === mx && e.y === my && e.floor === player.floor && e.alive);
+      if (enemy) { row += enemy.isBoss ? "B" : "E"; continue; }
+      const npc = npcs.find((n) => n.x === mx && n.y === my && n.floor === player.floor);
+      if (npc) { row += "N"; continue; }
+      const puzzle = puzzles.find((p) => p.x === mx && p.y === my && p.floor === player.floor && !p.solved);
+      if (puzzle) { row += "T"; continue; }
+      const gItem = groundItems.find((i) => i.x === mx && i.y === my && i.floor === player.floor && !i.picked);
+      if (gItem) { row += gItem.type === "keycard" ? "K" : gItem.type === "weapon" ? "W" : gItem.type === "armor" ? "A" : "+"; continue; }
+      const door = doors.find((d) => d.x === mx && d.y === my && d.floor === player.floor);
+      if (door?.locked) { row += "D"; continue; }
+      const ch = map[my]?.[mx] ?? " ";
+      if (ch === "#") row += "█";
+      else if (ch === ">") row += ">";
+      else if (ch === ".") row += "·";
+      else row += ch;
+    }
+    lines.push(row);
+  }
+  return lines;
+}
+
+/* ----- HUD status bar ----- */
+function renderHUD(state: GameState): string[] {
+  if (!state.player) return [];
+  const p = state.player;
+  const ac = 10 + Math.floor(p.stats.def / 2) + Math.floor(p.stats.spd / 4);
+  const lines = [
+    `[${p.className}] LV:${p.level} HP:${p.stats.hp}/${p.stats.maxHp} MP:${p.stats.mp}/${p.stats.maxMp} AC:${ac} ${FLOOR_NAMES[p.floor]}`,
+    `ATK:${p.stats.atk} DEF:${p.stats.def} XP:${p.xp}/${p.xpToNext}${p.stealthMode ? ` 🕶${p.stealth}` : ""}${p.comboCount > 0 ? ` ⚡x${p.comboCount}` : ""}${p.statusEffects.length > 0 ? " " + p.statusEffects.map(e => ({ poison: "☠", burn: "🔥", stun: "💫", slow: "🐌", bleed: "🩸" }[e.type] || "?")).join("") : ""}`,
+  ];
+  return lines;
+}
+
+/* ----- Class selection screen ----- */
+function ClassSelect({ onSelect }: { onSelect: (c: ClassName) => void }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-primary text-glow text-sm">Select your class:</p>
+      <div className="grid gap-3">
+        {(Object.keys(CLASS_DATA) as ClassName[]).map((cls) => {
+          const data = CLASS_DATA[cls];
+          const s = data.stats;
+          return (
+            <button
+              key={cls}
+              onClick={() => onSelect(cls)}
+              className="text-left p-3 border border-border hover:border-primary font-mono text-xs transition-colors group"
+            >
+              <span className="text-primary group-hover:text-glow text-sm font-bold">{cls}</span>
+              <br />
+              <span className="text-muted-foreground">{data.desc}</span>
+              <br />
+              <span className="text-foreground/70">
+                HP:{s.maxHp} MP:{s.maxMp} ATK:{s.atk} DEF:{s.def} SPD:{s.spd} INT:{s.int}
+              </span>
+              <br />
+              <span className="text-primary/60">★ {data.special}</span>
+              <br />
+              <span className="text-muted-foreground/80">
+                Skills: {data.skills.map(sk => `${sk.name}(${sk.mpCost}MP)`).join(", ")}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ----- Legend ----- */
+function Legend() {
+  return (
+    <div className="text-[10px] text-muted-foreground font-mono leading-tight mt-2">
+      <span className="text-primary">@</span>=You{" "}
+      <span className="text-destructive">E</span>=Enemy{" "}
+      <span className="text-yellow-400">N</span>=NPC{" "}
+      <span className="text-cyan-400">K</span>=Key{" "}
+      <span className="text-green-400">+</span>=Heal{" "}
+      <span className="text-orange-400">W</span>=Weapon{" "}
+      <span className="text-blue-400">A</span>=Armor{" "}
+      <span className="text-red-400">D</span>=Door{" "}
+      <span className="text-primary">&gt;</span>=Stairs{" "}
+      <span className="text-purple-400">B</span>=Boss{" "}
+      <span className="text-amber-300">T</span>=Terminal
+    </div>
+  );
+}
+
+/* ----- Dialogue choices UI ----- */
+function DialogueChoicesUI({ choices, dispatch }: { choices: DialogueChoice[]; dispatch: React.Dispatch<any> }) {
+  return (
+    <div className="space-y-1 mt-1">
+      {choices.map((choice, i) => (
+        <button
+          key={i}
+          onClick={() => dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: i })}
+          className="block w-full text-left font-mono text-xs px-2 py-1.5 border border-border hover:border-primary hover:text-primary transition-colors"
+        >
+          <span className="text-primary">[{i + 1}]</span> {choice.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ----- Mobile D-pad & action buttons ----- */
+function MobileControls({ state, dispatch }: { state: GameState; dispatch: React.Dispatch<any> }) {
+  const btn = "w-12 h-12 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-sm text-foreground select-none touch-manipulation";
+  const actionBtn = "h-10 flex items-center justify-center border border-border bg-card/80 active:bg-primary/20 active:border-primary font-mono text-[10px] text-foreground select-none touch-manipulation px-3";
+
+  const { mode, dialogueChoices } = state;
+
+  if (mode === "CLASS_SELECT") return null;
+
+  return (
+    <div className="mt-3 flex flex-col gap-3 md:hidden">
+      {(mode === "EXPLORE" || mode === "INVENTORY") && (
+        <div className="flex items-center justify-between">
+          <div className="grid grid-cols-3 gap-1 w-fit">
+            <div />
+            <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: 0, dy: -1 }); }}>▲</button>
+            <div />
+            <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: -1, dy: 0 }); }}>◄</button>
+            <div className="w-12 h-12" />
+            <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: 1, dy: 0 }); }}>►</button>
+            <div />
+            <button className={btn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "MOVE", dx: 0, dy: 1 }); }}>▼</button>
+            <div />
+          </div>
+          <div className="flex flex-col gap-2">
+            <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "TOGGLE_INVENTORY" }); }}>
+              {mode === "INVENTORY" ? "CLOSE" : "INV"}
+            </button>
+            <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "TOGGLE_STEALTH" }); }}>
+              {state.player?.stealthMode ? "🕶 ON" : "SNEAK"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {mode === "COMBAT" && (
+        <div className="flex gap-2 flex-wrap">
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "ATTACK" }); }}>⚔ ATK</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SPECIAL" }); }}>★ Q</button>
+          {state.player?.skills.slice(1).map((sk, i) => (
+            <button key={i} className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SKILL", skillIndex: i + 1 }); }}>
+              {sk.name.substring(0, 4)}
+            </button>
+          ))}
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "FLEE" }); }}>🏃 FLEE</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "USE_ITEM", itemIndex: 0 }); }}>USE1</button>
+        </div>
+      )}
+
+      {mode === "DIALOGUE" && !dialogueChoices && (
+        <button className={actionBtn + " w-full"} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "ADVANCE_DIALOGUE" }); }}>
+          ▶ CLOSE
+        </button>
+      )}
+
+      {mode === "DIALOGUE" && dialogueChoices && (
+        <div className="flex gap-2 flex-wrap">
+          {dialogueChoices.map((_, i) => (
+            <button key={i} className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: i }); }}>
+              [{i + 1}]
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mode === "PUZZLE" && (
+        <div className="flex gap-2 flex-wrap">
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_SUBMIT" }); }}>SUBMIT</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_BACKSPACE" }); }}>⌫</button>
+          <button className={actionBtn} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "PUZZLE_QUIT" }); }}>ESC</button>
+        </div>
+      )}
+
+      {(mode === "GAME_OVER" || mode === "WIN") && (
+        <button className={actionBtn + " w-full"} onTouchStart={(e) => { e.preventDefault(); dispatch({ type: "RESTART" }); }}>
+          ↻ RESTART
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ----- Map character coloring ----- */
+function charColor(ch: string): string {
+  if (ch === "@") return "text-primary text-glow";
+  if (ch === "E") return "text-destructive";
+  if (ch === "B") return "text-purple-400 font-bold";
+  if (ch === "N") return "text-yellow-400";
+  if (ch === "K") return "text-cyan-400";
+  if (ch === "+") return "text-green-400";
+  if (ch === "W") return "text-orange-400";
+  if (ch === "A") return "text-blue-400";
+  if (ch === "D") return "text-red-400";
+  if (ch === "T") return "text-amber-300";
+  if (ch === ">") return "text-primary";
+  if (ch === "█") return "text-border";
+  if (ch === "░") return "text-muted-foreground/20";
+  return "text-muted-foreground/40";
+}
+
+/* ----- Main component ----- */
+const GameTerminal = () => {
+  const [state, dispatch] = useReducer(gameReducer, null, createInitialState);
+  const logRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logRef.current?.scrollTo(0, logRef.current.scrollHeight);
+  }, [state.log]);
+
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      e.preventDefault();
+
+      switch (state.mode) {
+        case "EXPLORE":
+          if (key === "w" || key === "arrowup") dispatch({ type: "MOVE", dx: 0, dy: -1 });
+          else if (key === "s" || key === "arrowdown") dispatch({ type: "MOVE", dx: 0, dy: 1 });
+          else if (key === "a" || key === "arrowleft") dispatch({ type: "MOVE", dx: -1, dy: 0 });
+          else if (key === "d" || key === "arrowright") dispatch({ type: "MOVE", dx: 1, dy: 0 });
+          else if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
+          else if (key === "x") dispatch({ type: "TOGGLE_STEALTH" });
+          break;
+        case "COMBAT":
+          if (key === "a") dispatch({ type: "ATTACK" });
+          else if (key === "q") dispatch({ type: "SPECIAL" });
+          else if (key === "f") dispatch({ type: "FLEE" });
+          else if (key === "1") dispatch({ type: "SKILL", skillIndex: 0 });
+          else if (key === "2") dispatch({ type: "SKILL", skillIndex: 1 });
+          else if (key === "3") dispatch({ type: "SKILL", skillIndex: 2 });
+          else if (key >= "4" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 4 });
+          break;
+        case "DIALOGUE":
+          if (state.dialogueChoices) {
+            if (key >= "1" && key <= "9") {
+              const idx = parseInt(key) - 1;
+              if (idx < state.dialogueChoices.length) {
+                dispatch({ type: "SELECT_DIALOGUE_CHOICE", choiceIndex: idx });
+              }
+            }
+          } else {
+            if (key === "enter" || key === " ") dispatch({ type: "ADVANCE_DIALOGUE" });
+          }
+          break;
+        case "INVENTORY":
+          if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
+          else if (key >= "1" && key <= "9") dispatch({ type: "USE_ITEM", itemIndex: parseInt(key) - 1 });
+          break;
+        case "PUZZLE":
+          if (key === "escape") dispatch({ type: "PUZZLE_QUIT" });
+          else if (key === "backspace") dispatch({ type: "PUZZLE_BACKSPACE" });
+          else if (key === "enter") dispatch({ type: "PUZZLE_SUBMIT" });
+          else if (key.length === 1 && /^[a-zA-Z0-9 {}_]$/.test(key)) dispatch({ type: "PUZZLE_INPUT", char: key });
+          break;
+        case "GAME_OVER":
+        case "WIN":
+          if (key === "r") dispatch({ type: "RESTART" });
+          break;
+      }
+    },
+    [state.mode, state.dialogueChoices]
+  );
+
+  const mapLines = state.mode === "EXPLORE" || state.mode === "INVENTORY" ? renderMap(state) : [];
+  const hudLines = renderHUD(state);
+
+  return (
+    <div
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={handleKey}
+      className="w-full max-w-5xl mx-auto font-mono text-xs outline-none focus:outline-none overflow-hidden"
+    >
+      <div className="border border-border bg-card overflow-hidden">
+        {/* Title bar */}
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-card/80">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+          <span className="text-muted-foreground text-[10px] ml-2">
+            mainframe_breach.exe — {state.mode}
+          </span>
+        </div>
+
+        {/* Game content */}
+        <div className="p-4 space-y-2">
+          {state.mode === "CLASS_SELECT" && (
+            <ClassSelect onSelect={(c) => dispatch({ type: "SELECT_CLASS", className: c })} />
+          )}
+
+          {mapLines.length > 0 && (
+            <div>
+              <pre className="text-foreground leading-none tracking-widest text-[11px] select-none overflow-hidden">
+                {mapLines.map((line, i) => (
+                  <div key={i}>
+                    {line.split("").map((ch, j) => (
+                      <span key={j} className={charColor(ch)}>{ch}</span>
+                    ))}
+                  </div>
+                ))}
+              </pre>
+              <Legend />
+            </div>
+          )}
+
+          {state.player && (
+            <div className="text-primary text-glow text-[10px] border-t border-border pt-1 space-y-0.5">
+              {hudLines.map((line, i) => <div key={i}>{line}</div>)}
+            </div>
+          )}
+
+          {state.mode === "COMBAT" && state.currentEnemy && (
+            <div className="text-destructive text-[10px] font-bold">
+              ⚔ {state.currentEnemy.name} — HP: {state.currentEnemy.stats.hp}/{state.currentEnemy.stats.maxHp}
+              {" "}AC:{state.currentEnemy.ac}
+              {state.currentEnemy.statusEffects.length > 0 && " " + state.currentEnemy.statusEffects.map(e => ({ poison: "☠", burn: "🔥", stun: "💫", slow: "🐌", bleed: "🩸" }[e.type] || "?")).join("")}
+            </div>
+          )}
+
+          {/* Puzzle input display */}
+          {state.mode === "PUZZLE" && (
+            <div className="text-amber-300 text-sm font-bold font-mono border border-border p-2 bg-card/60">
+              <div>ANSWER: {state.puzzleInput}<span className="animate-pulse">_</span></div>
+              <div className="text-[10px] text-muted-foreground mt-1">Type answer · ENTER to submit · ESC to quit</div>
+            </div>
+          )}
+
+          {/* Dialogue choices */}
+          {state.mode === "DIALOGUE" && state.dialogueChoices && (
+            <DialogueChoicesUI choices={state.dialogueChoices} dispatch={dispatch} />
+          )}
+
+          <div
+            ref={logRef}
+            className="h-44 overflow-y-auto border-t border-border pt-2 scroll-smooth game-log-scroll"
+          >
+            {state.log.map((line, i) => (
+              <div
+                key={i}
+                className={`leading-relaxed ${
+                  line.startsWith(">>>") || line.startsWith("╔") || line.startsWith("║") || line.startsWith("╚")
+                    ? "text-primary text-glow"
+                    : line.startsWith(">>")
+                    ? "text-yellow-400"
+                    : line.startsWith("🎲")
+                    ? "text-cyan-400"
+                    : line.startsWith(">") && !line.startsWith(">>")
+                    ? "text-accent-foreground font-bold"
+                    : line.startsWith("═══")
+                    ? "text-destructive font-bold"
+                    : "text-foreground/80"
+                }`}
+              >
+                {line || "\u00A0"}
+              </div>
+            ))}
+          </div>
+
+          {/* Controls hint (desktop) */}
+          <div className="text-muted-foreground text-[9px] border-t border-border pt-1 hidden md:block">
+            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles"}
+            {state.mode === "COMBAT" && "A: Attack | Q: Special | 1-3: Skills | 4-9: Items | F: Flee"}
+            {state.mode === "DIALOGUE" && state.dialogueChoices && "1-" + state.dialogueChoices.length + ": Select response"}
+            {state.mode === "DIALOGUE" && !state.dialogueChoices && "Enter/Space: Close"}
+            {state.mode === "INVENTORY" && "I: Close | 1-9: Use Item"}
+            {state.mode === "PUZZLE" && "Type answer | Enter: Submit | Esc: Quit"}
+            {(state.mode === "GAME_OVER" || state.mode === "WIN") && "R: Restart"}
+          </div>
+
+          {/* Mobile controls */}
+          <MobileControls state={state} dispatch={dispatch} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default GameTerminal;
