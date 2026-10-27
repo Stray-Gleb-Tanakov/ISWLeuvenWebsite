@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: website
-          image: ghcr.io/stray-gleb-tanakov/website-isw:7dc93146b743460c679d74a5a14fad5b43c43fff
+          image: ghcr.io/stray-gleb-tanakov/website-isw:ae12965bc1e23c18f63b5cfff2f2910d8b2afa63
           imagePullPolicy: Always
           ports:
             - containerPort: 80
