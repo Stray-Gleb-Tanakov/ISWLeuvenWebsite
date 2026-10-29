@@ -9,6 +9,13 @@ spec:
     - host: iswleuven.be # replace with your real domain
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: food-api
+                port:
+                  number: 3000
           - path: /
             pathType: Prefix
             backend:

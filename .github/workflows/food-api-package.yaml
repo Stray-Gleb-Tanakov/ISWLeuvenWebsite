@@ -1,0 +1,28 @@
+name: Package & Publish Food API
+on:
+  push:
+    branches: [ BrANCHTEST ]
+    paths: [ 'food-api/**', '.github/workflows/food-api-package.yaml' ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build & Push
+      uses: docker/build-push-action@v6
+      with:
+        context: ./food-api
+        file: ./food-api/Dockerfile
+        push: true
+        tags: ghcr.io/stray-gleb-tanakov/food-api:latest

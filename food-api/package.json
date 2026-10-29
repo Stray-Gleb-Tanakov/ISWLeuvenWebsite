@@ -1,0 +1,19 @@
+{
+  "name": "food-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "seed:food": "bun run scripts/seed-food.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "4.6.14",
+    "mysql2": "3.11.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.1.14",
+    "typescript": "5.8.3"
+  }
+}
