@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# API: local env and filled-in k8s secret
+food-api/.env
+food-api/k8s-secret.yaml

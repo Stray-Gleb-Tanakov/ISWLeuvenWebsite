@@ -55,6 +55,8 @@ export interface FoodItem {
   priceNonMember: string;
   priceMember: string;
   available: boolean;
+  /** How many are left; only known when the menu comes from the API. */
+  amount?: number | null;
 }
 
 export interface FoodCategory {

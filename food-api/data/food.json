@@ -1,0 +1,56 @@
+[
+  {
+    "id": "drinks",
+    "title": "Drinks",
+    "emoji": "🥤",
+    "items": [
+      { "slug": "d1", "name": "cola", "nonMember": 120, "member": 100, "available": true },
+      { "slug": "d2", "name": "fanta", "nonMember": 120, "member": 100, "available": false },
+      { "slug": "d3", "name": "monster energy", "nonMember": 250, "member": 200, "available": true },
+      { "slug": "d4", "name": "monster energy Pipeline Punch", "nonMember": 220, "member": 200, "available": true },
+      { "slug": "d5", "name": "monster energy Ultra White", "nonMember": 220, "member": 200, "available": true },
+      { "slug": "d6", "name": "monster energy Ultra Black", "nonMember": 220, "member": 200, "available": true },
+      { "slug": "d7", "name": "monster energy Bad Apple", "nonMember": 220, "member": 200, "available": true },
+      { "slug": "d8", "name": "chocolate milk", "nonMember": 150, "member": 100, "available": true },
+      { "slug": "d9", "name": "cola zero", "nonMember": 120, "member": 100, "available": false },
+      { "slug": "d10", "name": "Rodeo", "nonMember": 100, "member": 80, "available": false }
+    ]
+  },
+  {
+    "id": "snacks",
+    "title": "Snacks",
+    "emoji": "🍟",
+    "items": [
+      { "slug": "s1", "name": "Small Aiki noodles Chicken/Curry/Hot&Spicy", "nonMember": 200, "member": 150, "available": true },
+      { "slug": "s2", "name": "Dorito's", "nonMember": 250, "member": 200, "available": true },
+      { "slug": "s3", "name": "Bons Natural/Paprika/Salt&Pepper", "nonMember": 125, "member": 200, "available": true },
+      { "slug": "s4", "name": "Ijs vanille 1 bol", "nonMember": 100, "member": 70, "available": false }
+    ]
+  },
+  {
+    "id": "coffee",
+    "title": "Coffee",
+    "emoji": "☕",
+    "items": [
+      { "slug": "c1", "name": "Pads Coffee", "nonMember": 20, "member": 0, "available": true },
+      { "slug": "c2", "name": "Pads Deca Coffee", "nonMember": 20, "member": 0, "available": true },
+      { "slug": "c3", "name": "Senseo Extra Strong", "nonMember": 40, "member": 32, "available": true },
+      { "slug": "c4", "name": "Volle Melk", "nonMember": null, "member": null, "available": false },
+      { "slug": "c5", "name": "Halfvolle Melk", "nonMember": null, "member": null, "available": false }
+    ]
+  },
+  {
+    "id": "warm-food",
+    "title": "Warm Food",
+    "emoji": "🍲",
+    "items": [
+      { "slug": "wf1", "name": "Pizza: Hawaii, Speciale, Prosciutto, Mozarella, 4 Formaggi", "nonMember": 300, "member": 250, "available": true },
+      { "slug": "wf2", "name": "Lasagna", "nonMember": 250, "member": 200, "available": true },
+      { "slug": "wf3", "name": "Lasagna Vegetale", "nonMember": 400, "member": 300, "available": true },
+      { "slug": "wf4", "name": "Macaroni", "nonMember": 450, "member": 400, "available": true },
+      { "slug": "wf5", "name": "Chicken Nuggets (6 pieces)", "nonMember": 250, "member": 200, "available": true },
+      { "slug": "wf6", "name": "Chicken Fingers (8-10~ pieces)", "nonMember": 350, "member": 300, "available": true },
+      { "slug": "wf7", "name": "Mozzarella Sticks (5 pieces)", "nonMember": 250, "member": 200, "available": false }
+    ]
+  }
+]
