@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { createInitialState, gameReducer } from "./engine";
 import { applyPerk, rollPerkChoices } from "./perks";
 import { createQte, rmEgg, shellResult, normalizeCommand, SHELL_PROBLEMS } from "./qte";
-import { detectIntent, readInput } from "./talk";
+import { detectIntent, readInput, presentNpcs } from "./talk";
 import { raycastText as raycast } from "./raycaster";
 import { makeLeech } from "./data";
 import type { ClassName, Enemy, GameState, PerkId } from "./types";
@@ -225,11 +225,17 @@ describe("run summary stats", () => {
 });
 
 describe("talk mode", () => {
+  // no random ambushes, predictable line picks
+  beforeEach(() => { vi.spyOn(Math, "random").mockReturnValue(0.99); });
+
   function talkRun() {
     return gameReducer(createInitialState(), { type: "SELECT_CLASS", className: "Social Engineer" });
   }
   const say = (s: GameState, ...lines: string[]) => lines.reduce((st, text) => gameReducer(st, { type: "TALK_INPUT", text }), s);
-  const lastSaid = (s: GameState) => s.log.filter((l) => !l.startsWith("[suspicion")).at(-1);
+  const lastSaid = (s: GameState) => s.log.filter((l) => !l.startsWith("[trust")).at(-1);
+  const trust = (s: GameState, id: string) => s.talk!.memory[id]?.trust ?? 0;
+  /* the full con on the guard: claim, proof, reason */
+  const winGuard = (s: GameState) => say(s, "south", "security", "talk to the guard", "evening, I'm from IT", "Lander sent me", "I'm here to fix the coffee machine");
 
   it("reads intents from free text", () => {
     expect(detectIntent("hey there")).toBe("greet");
@@ -247,22 +253,131 @@ describe("talk mode", () => {
     expect(readInput("thanks, I'm from tech support, could you please help").polite).toBe(true);
   });
 
+  it("the whole run is a text adventure", () => {
+    const s = talkRun();
+    expect(s.mode).toBe("TALK");
+    expect(s.talk!.scene).toBe("closet");
+  });
+
+  it("one bluff isn't enough: the guard tests you", () => {
+    const s = say(talkRun(), "south", "security", "talk to the guard", "I'm from IT");
+    expect(s.talk!.flags).not.toContain("keycard");
+    expect(s.log.some((l) => l.includes("who signed your work order"))).toBe(true);
+    expect(s.talk!.memory.guard.pending).toBe("who_sent");
+  });
+
+  it("claim + the systeembeheerder's name + a real reason = keycard and the drone code", () => {
+    const s = winGuard(talkRun());
+    expect(trust(s, "guard")).toBe(100);
+    expect(s.talk!.flags).toEqual(expect.arrayContaining(["keycard", "knows_code"]));
+    expect(s.talk!.npc).toBeNull(); // conversation over
+  });
+
+  it("natural phrasing works: IT-ish answers and reasons aren't mistaken for repeating yourself", () => {
+    const s = say(talkRun(), "south", "security", "talk to the guard", "evening, I'm from IT",
+      "Lander signed it, he's the systeembeheerder", "the coffee machine has been broken for weeks, I'm here to fix it");
+    expect(s.talk!.flags).toContain("keycard");
+  });
+
+  it("the con works in Dutch and in chat slang too", () => {
+    const nl = say(talkRun(), "south", "security", "talk to the guard", "goedenavond, ik ben van ICT",
+      "Lander, de systeembeheerder", "de koffiemachine... the coffee machine is kapot");
+    expect(nl.talk!.flags).toContain("keycard");
+    const slang = say(talkRun(), "south", "security", "talk to the guard", "yo im from IT", "landr sent me", "fixing ur printer");
+    expect(slang.talk!.flags).toContain("keycard");
+  });
+
+  it("everyone answers the basics in character", () => {
+    let s = say(talkRun(), "south", "security", "talk to the guard", "who are you?");
+    expect(lastSaid(s)).toContain("Kowalski");
+    s = say(s, "why are you even down here?");
+    expect(["I ask the questions", "Does it look like I know", "Ask the systeembeheerder"].some((q) => lastSaid(s)!.includes(q))).toBe(true);
+    s = say(s, "help me");
+    expect(lastSaid(s)).toContain("back out the door");
+  });
+
+  it("a wrong name raises suspicion instead", () => {
+    const s = say(talkRun(), "south", "security", "talk to the guard", "I'm from IT", "uh, Bob sent me");
+    expect(s.talk!.suspicion.guard).toBeGreaterThanOrEqual(35);
+    expect(trust(s, "guard")).toBe(20);
+  });
+
+  it("getting caught is fatal", () => {
+    const s = say(talkRun(), "south", "security", "talk to the guard", "I'm from IT", "Bob", "the boss sent me", "or else");
+    expect(s.mode).toBe("GAME_OVER");
+    expect(s.runStats.killedBy).toBe("KOWALSKI");
+    expect(s.log.some((l) => l.includes("silent alarm"))).toBe(true);
+  });
+
+  it("stalling costs you too: every line adds a little suspicion", () => {
+    const s = say(talkRun(), "south", "security", "talk to the guard", "nice weather", "how's the coffee");
+    expect(s.talk!.suspicion.guard).toBeGreaterThan(0);
+  });
+
+  it("the drone needs the maintenance code the guard gives you", () => {
+    let s = say(talkRun(), "south", "go east");
+    expect(s.talk!.scene).toBe("corridor");
+    s = say(s, "talk to the drone", "maintenance crew, routine check", "uh, 1234");
+    expect(s.talk!.flags).not.toContain("drone_off");
+    expect(s.talk!.suspicion.drone).toBeGreaterThanOrEqual(40);
+
+    let t = winGuard(talkRun());
+    t = say(t, "back", "talk to the drone", "maintenance crew, routine check", "code 404");
+    expect(t.talk!.flags).toContain("drone_off");
+    expect(presentNpcs(t).map((n) => n.id)).not.toContain("drone");
+    t = say(t, "go east", "go down the hatch");
+    expect(t.mode).toBe("WIN");
+  });
+
+  it("the hatch stays shut without a keycard", () => {
+    // sneak past with the code but no keycard
+    let s = winGuard(talkRun());
+    s = { ...s, talk: { ...s.talk!, flags: s.talk!.flags.filter((f) => f !== "keycard") } };
+    s = say(s, "back", "talk to drone", "maintenance", "404", "east", "go down the hatch");
+    expect(s.mode).toBe("TALK");
+    expect(s.log.at(-1)).toContain("keycard slot blinks red");
+  });
+
+  it("the process needs two real arguments, then the right exit code", () => {
+    let s = say(talkRun(), "south", "server hall", "go to the archive");
+    expect(s.talk!.scene).toBe("hall");
+    s = say(s, "talk to the process", "your parent process is dead");
+    expect(s.talk!.flags).not.toContain("process_gone");
+    s = say(s, "you're a zombie now");
+    expect(s.talk!.memory.process.pending).toBe("exit_code");
+    s = say(s, "exit with 0");
+    expect(s.talk!.flags).toContain("process_gone");
+  });
+
+  it("the leech wants credits and a tip where to find more", () => {
+    let s = say(talkRun(), "south", "server hall", "talk to process", "your parent is gone", "you are a zombie", "0", "archive", "take the medkit");
+    expect(s.log.at(-1)).toContain("MINE");
+    s = { ...s, player: { ...s.player!, credits: 40 } };
+    s = say(s, "talk to the leech", "here, have 15 credits");
+    expect(s.talk!.flags).not.toContain("leech_gone");
+    s = say(s, "the guard upstairs has loads");
+    expect(s.talk!.flags).toContain("leech_gone");
+    expect(s.player!.credits).toBe(25);
+    s = say(s, "take the medkit", "take the blade");
+    expect(s.player!.inventory.some((i) => i.id === "talk-medkit")).toBe(true);
+  });
+
   it("topics get their own lines, unknown words are echoed back in character", () => {
     let s = say(talkRun(), "south", "security", "talk to guard", "how is the coffee down here");
     expect(lastSaid(s)).toContain("coffee machine");
-    s = say(s, "do you like thomas");
-    expect(lastSaid(s)).toContain("3 AM");
+    s = say(s, "do you know thomas");
+    expect(lastSaid(s)).toContain("contact page");
     s = say(s, "quantum dishwasher");
     expect(lastSaid(s)).toMatch(/dishwasher|Dishwasher/);
   });
 
   it("remembers your claims: IT and then the boss doesn't add up", () => {
-    const s = say(talkRun(), "south", "security", "talk to guard", "I'm from IT", "actually the boss sent me");
+    const s = say(talkRun(), "south", "security", "talk to guard", "I'm from IT", "Lander", "actually the boss sent me");
     expect(s.log.some((l) => l.includes("Which is it?"))).toBe(true);
   });
 
   it("notices when you say the same thing three times", () => {
-    const s = say(talkRun(), "south", "security", "talk to guard", "nice hat", "nice shoes", "nice coffee");
+    const s = say(talkRun(), "south", "security", "talk to guard", "nice hat", "nice shoes", "nice jacket");
     expect(lastSaid(s)).toContain("You said that already");
   });
 
@@ -272,43 +387,17 @@ describe("talk mode", () => {
     expect(polite.talk!.suspicion.guard).toBeLessThan(rude.talk!.suspicion.guard);
   });
 
-  it("the whole run is a text adventure", () => {
-    const s = talkRun();
-    expect(s.mode).toBe("TALK");
-    expect(s.talk!.scene).toBe("closet");
+  it("people show up as emoticons; the portrait is only for conversations", () => {
+    const s = say(talkRun(), "south", "security");
+    expect(presentNpcs(s).map((n) => n.emote)).toEqual(["(-_-)"]);
   });
 
-  it("bluff the guard, get the keycard, take the hatch: end of pilot", () => {
-    let s = say(talkRun(), "go south", "go to the security office");
-    expect(s.talk!.scene).toBe("security");
-    s = say(s, "talk to the guard", "evening, I'm from IT", "I need the keycard for the hatch", "bye");
-    expect(s.talk!.flags).toContain("keycard");
-    s = say(s, "back", "go east");
-    expect(s.talk!.scene).toBe("east");
-    s = say(s, "go down the hatch");
-    expect(s.mode).toBe("WIN");
-  });
-
-  it("the hatch stays shut without a keycard", () => {
-    const s = say(talkRun(), "south", "east", "go down the hatch");
-    expect(s.mode).toBe("TALK");
-    expect(s.log.at(-1)).toContain("keycard slot blinks red");
-  });
-
-  it("pushing the guard too far starts a fight", () => {
-    const s = say(talkRun(), "south", "security", "talk to guard", "you idiot", "I will destroy you", "or else", "loser");
+  it("moving between rooms can trigger an ambush (you still arrive)", () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.01);
+    const s = say(talkRun(), "south");
     expect(s.mode).toBe("COMBAT");
-    expect(s.currentEnemy!.name).toContain("Kowalski");
-  });
-
-  it("the process blocks the archive until you convince it to exit", () => {
-    let s = say(talkRun(), "south", "server hall", "go to the archive");
-    expect(s.talk!.scene).toBe("hall");
-    s = say(s, "talk to the process", "your parent process is dead, you should exit");
-    expect(s.talk!.flags).toContain("process_gone");
-    s = say(s, "go to the archive", "take the medkit", "take the blade");
-    expect(s.talk!.scene).toBe("archive");
-    expect(s.player!.inventory.some((i) => i.id === "talk-medkit")).toBe(true);
+    expect(s.log.some((l) => l.includes("AMBUSH"))).toBe(true);
+    expect(s.talk!.scene).toBe("corridor");
   });
 
   it("anything typed near one person is said to them", () => {

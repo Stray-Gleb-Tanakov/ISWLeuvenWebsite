@@ -191,7 +191,8 @@ export interface TalkState {
   suspicion: Record<string, number>; // per NPC, 0-100, 100 = alarm
   flags: string[];      // story progress
   visited: string[];
-  memory: Record<string, { claims: string[]; recent: string[] }>; // per NPC: what you claimed, your last intents
+  // per NPC: what you claimed, your last intents, how convinced they are, an open question, trust already earned
+  memory: Record<string, { claims: string[]; recent: string[]; trust: number; pending: string | null; used: string[] }>;
 }
 
 export interface RunStats {

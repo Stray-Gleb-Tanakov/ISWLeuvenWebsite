@@ -1,28 +1,64 @@
 name: Package & Publish Food API
+
 on:
   push:
-    branches: [ BrANCHTEST ]
-    paths: [ 'food-api/**', '.github/workflows/food-api-package.yaml' ]
+    branches:
+      - main
+    paths:
+      - 'food-api/**'
+      - '.github/workflows/food-api-package.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
+    if: "!contains(github.event.head_commit.message, 'ci: deploy')"
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-    - name: Login to GHCR
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build & Push
-      uses: docker/build-push-action@v6
-      with:
-        context: ./food-api
-        file: ./food-api/Dockerfile
-        push: true
-        tags: ghcr.io/stray-gleb-tanakov/food-api:latest
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./food-api
+          file: ./food-api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/stray-gleb-tanakov/food-api:${{ github.sha }}
+            ghcr.io/stray-gleb-tanakov/food-api:latest
+
+      - name: Update deployment image tag
+        run: |
+          sed -i \
+            "s#image: ghcr.io/stray-gleb-tanakov/food-api:.*#image: ghcr.io/stray-gleb-tanakov/food-api:${{ github.sha }}#" \
+            k8s/food-api-deployment.yaml
+
+      - name: Commit deployment update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet k8s/food-api-deployment.yaml; then
+            echo "No deployment image change"
+            exit 0
+          fi
+
+          git add k8s/food-api-deployment.yaml
+          git commit -m "ci: deploy food-api ${{ github.sha }}"
+          # The website workflow may have pushed a deploy commit in the meantime
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import type { GameState } from "@/game/types";
-import { SCENES, NPCS } from "@/game/talk";
+import { SCENES, NPCS, presentNpcs } from "@/game/talk";
 import { raycast, type Cell } from "@/game/raycaster";
 import { PORTRAITS } from "@/game/portraits";
 
@@ -43,13 +43,16 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
 
   const npc = talk.npc ? NPCS[talk.npc] : null;
   const suspicion = npc ? talk.suspicion[npc.id] ?? 0 : 0;
-  // Who's on screen: your conversation partner, or ISW-Chan watching in the east wing
-  const portraitKey = npc
-    ? (suspicion >= 60 && npc.angryPortrait ? npc.angryPortrait : npc.portrait)
-    : talk.scene === "east" ? "isw_chan" : null;
+  const trust = npc ? talk.memory?.[npc.id]?.trust ?? 0 : 0;
+  // The portrait only shows while you're talking to someone; otherwise they're an emoticon in the room
+  const portraitKey = npc ? (suspicion >= 60 && npc.angryPortrait ? npc.angryPortrait : npc.portrait) : null;
+  const present = presentNpcs(state);
 
-  // ISW-Chan's frame is 70 columns: draw it small, with square-ish cells like the original
-  const portraitSize = portraitKey?.startsWith("isw_chan") ? "leading-none text-[5px] sm:text-[8px]" : "leading-tight text-[10px]";
+  // In a conversation their face fills the screen. ISW-Chan and the officer are ~70-column
+  // conversions (square-ish cells like the originals); the hand-drawn ones are ~20 columns
+  const big = portraitKey?.startsWith("isw_chan") || portraitKey?.startsWith("guard");
+  const portraitSize = big ? "leading-none text-[6px] sm:text-[10px]" : "leading-tight text-[13px] sm:text-[20px]";
+  const portraitColor = portraitKey === "guard_angry" ? "text-red-400" : portraitKey === "guard" ? "text-sky-200" : "text-pink-300";
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,26 +61,48 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
     setInput("");
   };
 
-  const chips = npc ? ["hi", "I'm from IT", "can I have the keycard?", "bye"] : ["look", ...scene.exits.map((x) => `go ${x.words[0]}`), "help"];
+  const chips = npc
+    ? ["hi", "bye"]
+    : ["look", ...present.map((p) => `talk to ${p.words[0]}`), ...scene.exits.map((x) => `go ${x.words[0]}`), "help"];
 
   return (
     <div className="border border-border bg-card p-3 font-mono text-xs space-y-2">
       <div className="flex justify-between gap-2">
         <span className="text-primary text-glow font-bold">▣ {scene.title}</span>
-        {npc && npc.enemy && <span className={suspicion >= 60 ? "text-destructive" : "text-amber-300"}>suspicion {suspicion}%</span>}
+        {npc?.convinced && (
+          <span className="flex gap-3">
+            <span className="text-primary">trust {trust}%</span>
+            <span className={suspicion >= 60 ? "text-destructive animate-pulse" : "text-amber-300"}>suspicion {suspicion}%</span>
+          </span>
+        )}
       </div>
-      <div className="flex gap-3 items-start">
+      {npc && portraitKey ? (
+        /* Conversation: only their face, centred */
+        <div className="flex flex-col items-center gap-2 py-2">
+          <pre className={`${portraitColor} select-none ${portraitSize}`} aria-label={npc.name}>{PORTRAITS[portraitKey].join("\n")}</pre>
+          {npc.convinced && (
+            <div className="w-full max-w-md space-y-1" aria-hidden="true">
+              <div className="h-1.5 bg-border"><div className="h-full bg-primary transition-all" style={{ width: `${trust}%` }} /></div>
+              <div className="h-1.5 bg-border"><div className="h-full bg-destructive transition-all" style={{ width: `${suspicion}%` }} /></div>
+            </div>
+          )}
+        </div>
+      ) : (
         <pre className="rc-view leading-none text-[10px] sm:text-[13px] select-none overflow-hidden" aria-hidden="true">
           {view.map((row, r) => <div key={r}>{runs(row).map((run, i) => <span key={i} className={run.cls}>{run.text}</span>)}</div>)}
         </pre>
-        {portraitKey && !narrow && (
-          <pre className={`text-pink-300 select-none shrink-0 ${portraitSize}`} aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
-        )}
-      </div>
-      {portraitKey && narrow && (
-        <pre className={`text-pink-300 select-none ${portraitSize}`} aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
       )}
-      {npc && <p className="text-pink-300">Talking to {npc.name}. Type anything.</p>}
+      {npc ? (
+        <p className="text-pink-300">Talking to {npc.name}. Type anything.</p>
+      ) : present.length > 0 && (
+        <p className="text-muted-foreground">
+          Here:{" "}
+          {present.map((p, i) => (
+            <span key={p.id}>{i > 0 && " · "}<span className="text-pink-300">{p.emote}</span> {p.name.split(" //")[0]}</span>
+          ))}
+          <span className="text-muted-foreground/60"> (talk to them)</span>
+        </p>
+      )}
       <form onSubmit={submit} className="flex gap-2">
         <span className="text-primary self-center">&gt;</span>
         <input
