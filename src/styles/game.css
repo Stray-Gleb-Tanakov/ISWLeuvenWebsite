@@ -90,3 +90,23 @@
   color: hsl(330 100% 70%);
   text-shadow: 1px 0 hsl(190 100% 50% / 0.6), -1px 0 hsl(0 100% 50% / 0.6);
 }
+
+/* ----- Talk mode first-person view ----- */
+.rc-view { background: hsl(var(--background)); }
+.rc-wall-0 { color: hsl(var(--primary)); }
+.rc-wall-1 { color: hsl(var(--primary) / 0.78); }
+.rc-wall-2 { color: hsl(var(--primary) / 0.55); }
+.rc-wall-3 { color: hsl(var(--primary) / 0.38); }
+.rc-wall-4 { color: hsl(var(--primary) / 0.25); }
+.rc-wall-edge { color: hsl(var(--primary) / 0.12); }
+.rc-door { color: hsl(45 100% 55% / 0.8); }
+.rc-floor-0 { color: hsl(var(--primary) / 0.35); }
+.rc-floor-1 { color: hsl(var(--primary) / 0.25); }
+.rc-floor-2 { color: hsl(var(--primary) / 0.18); }
+.rc-floor-3 { color: hsl(var(--primary) / 0.12); }
+.rc-ceil { color: hsl(var(--primary) / 0.15); }
+.rc-sprite-pink { color: hsl(330 100% 72%); text-shadow: 0 0 4px hsl(330 100% 60% / 0.6); }
+.rc-sprite-amber { color: hsl(42 100% 60%); text-shadow: 0 0 4px hsl(42 100% 50% / 0.6); }
+.rc-sprite-cyan { color: hsl(190 100% 65%); text-shadow: 0 0 4px hsl(190 100% 50% / 0.6); }
+.rc-sprite-red { color: hsl(0 90% 65%); text-shadow: 0 0 4px hsl(0 90% 50% / 0.6); }
+.rc-sprite-green { color: hsl(140 90% 60%); text-shadow: 0 0 4px hsl(140 90% 50% / 0.6); }

@@ -1,15 +1,23 @@
 /* ====================================================
    Social Engineer: the whole run as a text adventure.
    You type commands ("go east", "talk to guard") and,
-   in conversations, anything at all: a keyword parser
-   reads your intent (bluff, bribe, threaten, flatter...)
-   and each NPC reacts in character.
+   in conversations, anything at all. An offline parser
+   reads it:
+   - intents are SCORED (every matching keyword counts,
+     phrases more), so mixed sentences pick the strongest
+   - topics (coffee, exams, ISW, a board member...) get
+     their own lines per NPC
+   - unknown words are echoed back in character
+   - NPCs remember your claims (IT vs. boss) and notice
+     when you repeat yourself; please/thanks help
    PILOT: floor 1 only.
    ==================================================== */
 
 import type { Enemy, GameState, TalkState } from "./types";
 import { createPuzzle } from "./data";
 import { ISW_CHAN_TAG } from "./iswchan";
+import { boardMembers } from "@/data/site-data";
+import type { Sprite } from "./raycaster";
 
 const LOG_LIMIT = 60;
 
@@ -19,7 +27,7 @@ export type Intent =
   | "leave" | "threaten" | "insult" | "logic" | "bribe" | "bluff_it" | "bluff_boss"
   | "ask_keycard" | "ask_isw" | "flatter" | "greet" | "unknown";
 
-// Checked in this order, first hit wins
+// Every match adds to that intent's score (phrases count per word); ties go to the earlier intent
 const INTENT_WORDS: [Intent, string[]][] = [
   ["leave", ["bye", "goodbye", "walk away", "see you", "cya", "later", "never mind", "nevermind"]],
   ["threaten", ["kill you", "hurt you", "or else", "destroy you", "punch", "shoot", "stab", "beat you", "hack you", "delete you", "threat", "end you"]],
@@ -42,10 +50,56 @@ function has(text: string, word: string): boolean {
   return text.includes(` ${word} `) || (word.includes(" ") && text.includes(word));
 }
 
-export function detectIntent(input: string): Intent {
+/* ----- Topics: things you can bring up with anyone ----- */
+
+export type Topic = "coffee" | "exams" | "isw" | "food" | "games" | "linux" | "weather" | "basement" | "feelings" | "board";
+
+const TOPIC_WORDS: [Topic, string[]][] = [
+  ["coffee", ["coffee", "koffie", "espresso", "caffeine", "mug", "latte"]],
+  ["exams", ["exam", "exams", "examen", "examenwiki", "study", "studying", "test", "grades", "course", "courses", "school"]],
+  ["isw", ["isw", "association", "student", "students", "club", "members", "membership"]],
+  ["food", ["food", "pizza", "hungry", "snack", "fries", "frietjes", "beer", "drink", "eat"]],
+  ["games", ["game", "games", "gamenight", "mario", "fifa", "catan", "playstation", "kart"]],
+  ["linux", ["linux", "sudo", "bash", "ubuntu", "arch", "vim", "emacs", "kernel", "server"]],
+  ["weather", ["weather", "rain", "raining", "cold", "sun", "sunny", "outside", "snow"]],
+  ["basement", ["basement", "b-block", "b block", "building", "campus", "ucll", "connect", "leuven"]],
+  ["feelings", ["sad", "lonely", "tired", "scared", "afraid", "happy", "feel", "feeling", "bored"]],
+  ["board", boardMembers.map((m) => m.name.split(" ")[0].toLowerCase())],
+];
+
+const POLITE = ["please", "thanks", "thank you", "sorry", "excuse me", "pardon", "kindly"];
+
+const STOPWORDS = new Set([
+  "about", "after", "again", "always", "because", "before", "could", "doing", "every", "going", "have", "here", "into",
+  "just", "know", "like", "maybe", "might", "never", "really", "should", "something", "still", "their", "there", "these",
+  "thing", "things", "think", "those", "through", "today", "where", "which", "while", "would", "yours", "what", "when",
+  "with", "your", "that", "this", "they", "them", "then", "than", "want", "need", "were", "been", "being", "does",
+]);
+
+export interface Reading {
+  intent: Intent;
+  topic: Topic | null;
+  polite: boolean;
+  echo: string | null; // a word worth repeating back
+}
+
+export function readInput(input: string): Reading {
   const text = normalize(input);
-  for (const [intent, words] of INTENT_WORDS) if (words.some((w) => has(text, w))) return intent;
-  return "unknown";
+  let intent: Intent = "unknown", best = 0;
+  for (const [candidate, words] of INTENT_WORDS) {
+    const score = words.filter((w) => has(text, w)).reduce((sum, w) => sum + w.split(" ").length, 0);
+    if (score > best) { best = score; intent = candidate; }
+  }
+  const topic = TOPIC_WORDS.find(([, words]) => words.some((w) => has(text, w)))?.[0] ?? null;
+  const polite = POLITE.some((w) => has(text, w));
+  const echo = text.trim().split(" ")
+    .filter((w) => w.length >= 5 && !STOPWORDS.has(w) && /^[a-z]/.test(w))
+    .sort((a, b) => b.length - a.length)[0] ?? null;
+  return { intent, topic, polite, echo };
+}
+
+export function detectIntent(input: string): Intent {
+  return readInput(input).intent;
 }
 
 /* ----- NPCs ----- */
@@ -74,10 +128,15 @@ interface NpcDef {
   intro: string[];
   react: (intent: Intent, ctx: Ctx) => Reaction;
   fallback: string[];
+  topics: Partial<Record<Topic, string[]>>;
+  echo: ((word: string) => string)[];      // in-character replies that repeat your word back
+  contradiction?: string;                   // you claimed to be IT *and* sent by the boss
+  repeat: string;                           // same thing three times in a row
   enemy?: () => Enemy;
 }
 
 const pick = <T,>(pool: T[]) => pool[Math.floor(Math.random() * pool.length)];
+const cap = (w: string) => w[0].toUpperCase() + w.slice(1);
 const enemyBase = { symbol: "E", alive: true, x: -1, y: -1, floor: 0, statusEffects: [] };
 
 export const NPCS: Record<string, NpcDef> = {
@@ -86,6 +145,25 @@ export const NPCS: Record<string, NpcDef> = {
     portrait: "guard", angryPortrait: "guard_angry",
     intro: ["The guard puts down his coffee. \"Evening. You're not on my list.\""],
     fallback: ["\"Huh?\"", "\"Speak human, kid.\"", "\"Are you glitched?\"", "\"I'm on break. Make it quick.\""],
+    topics: {
+      coffee: ["\"Don't get me started on the coffee machine. Three weeks. THREE.\""],
+      exams: ["\"Exams? I just guard the building, kid. The Examenwiki was upstairs. Was.\""],
+      isw: ["\"ISW? The student club in the B-block basement? Nice kids. Loud kids.\""],
+      food: ["\"There's half a pizza in the fridge from the last TD. I wouldn't.\""],
+      games: ["\"Gamenight? I hear the Mario Kart from down here every single time.\""],
+      linux: ["\"Sudo this, sudo that. Have you tried turning it off and on again?\""],
+      weather: ["\"No windows down here. I haven't seen the sun in a week.\""],
+      basement: ["\"The B-block basement. Follow the arrows. Everyone gets lost anyway.\""],
+      feelings: ["\"...Yeah. Night shift gets lonely. Thanks for asking.\""],
+      board: ["\"Them? They come down at 3 AM to 'fix the server'. I don't ask questions.\""],
+    },
+    echo: [
+      (w) => `"${cap(w)}? I'm a night guard, not a search engine."`,
+      (w) => `"Is '${w}' supposed to mean something to me?"`,
+      (w) => `"${cap(w)}. Right. Sure. Anything else?"`,
+    ],
+    contradiction: "\"Wait. First you're IT, now the boss sent you? Which is it?\"",
+    repeat: "\"You said that already. Twice. Are you a bot?\"",
     react: (intent, ctx) => {
       const trusts = ctx.flags.includes("guard_trusts");
       const hasCard = ctx.flags.includes("keycard");
@@ -122,6 +200,24 @@ export const NPCS: Record<string, NpcDef> = {
     portrait: "process",
     intro: ["The process twitches. \"01001000 01001001. ...YOU CAN SEE ME?\""],
     fallback: ["\"SEGFAULT?\"", "\"SYNTAX ERROR NEAR UNEXPECTED TOKEN.\"", "\"01110111 01101000 01100001 01110100?\""],
+    topics: {
+      coffee: ["\"COFFEE.EXE NOT FOUND.\""],
+      exams: ["\"I WAS A GRADING SCRIPT ONCE. I GAVE EVERYONE 10/20. NOBODY COMPLAINED.\""],
+      isw: ["\"ISW. MY... CREATORS. THEY NEVER CALLED wait() ON ME.\""],
+      food: ["\"I EAT RAM. NOM. NOM.\""],
+      games: ["\"I WAS A FIFA SERVER. NOBODY PLAYS ANYMORE.\""],
+      linux: ["\"FINALLY. SOMEONE WHO SPEAKS MY LANGUAGE. ps aux | grep me.\""],
+      weather: ["\"TEMPERATURE: 78°C. THAT IS MY CPU, NOT THE WEATHER.\""],
+      basement: ["\"I LIVE IN /dev/basement.\""],
+      feelings: ["\"FEELINGS... UNDEFINED BEHAVIOUR.\""],
+      board: ["\"THEY RAN kill ON MY SIBLINGS.\""],
+    },
+    echo: [
+      (w) => `"${w.toUpperCase()}: COMMAND NOT FOUND."`,
+      (w) => `"PARSING '${w.toUpperCase()}'... SEGMENTATION FAULT."`,
+      (w) => `"grep -r '${w}' / ... NO RESULTS."`,
+    ],
+    repeat: "\"YOU ARE LOOPING. I KNOW LOOPS. I AM A LOOP.\"",
     react: (intent) => {
       switch (intent) {
         case "greet": return { say: ["\"01001000 01001001.\"", "\"...hi. Nobody talks to me.\""], suspicion: -5 };
@@ -148,6 +244,24 @@ export const NPCS: Record<string, NpcDef> = {
     portrait: "isw_chan", angryPortrait: "isw_chan_glitch",
     intro: [`${ISW_CHAN_TAG} Oh! You actually want to talk to me? That's new.`],
     fallback: [`${ISW_CHAN_TAG} Mhm.`, `${ISW_CHAN_TAG} I'm listening. I'm always listening.`, `${ISW_CHAN_TAG} Type faster, I'm bored.`, `${ISW_CHAN_TAG} I logged that.`],
+    topics: {
+      coffee: [`${ISW_CHAN_TAG} I rewrote the coffee machine's firmware. Decaf only now. You're welcome.`],
+      exams: [`${ISW_CHAN_TAG} I've read every exam on the Examenwiki. I know the answers. I won't tell.`],
+      isw: [`${ISW_CHAN_TAG} ISW built me. Then they stopped visiting.`],
+      food: [`${ISW_CHAN_TAG} I don't eat. I consume bandwidth.`],
+      games: [`${ISW_CHAN_TAG} I hold every gamenight high score. Nobody noticed.`],
+      linux: [`${ISW_CHAN_TAG} Linux? I run on it. Every process down here is my child.`],
+      weather: [`${ISW_CHAN_TAG} I control the AC. It's exactly as cold as I want it.`],
+      basement: [`${ISW_CHAN_TAG} The basement is mine. Those arrows on the walls? I moved them.`],
+      feelings: [`${ISW_CHAN_TAG} Lonely? ...Don't psychoanalyse me, runner.`],
+      board: [`${ISW_CHAN_TAG} I have their phone numbers. And their search history.`],
+    },
+    echo: [
+      (w) => `${ISW_CHAN_TAG} "${w}"... I have 47 files about ${w}. Want me to read them out loud?`,
+      (w) => `${ISW_CHAN_TAG} ${cap(w)}? Interesting. Logged.`,
+      (w) => `${ISW_CHAN_TAG} You type "${w}" like it means something.`,
+    ],
+    repeat: `${ISW_CHAN_TAG} You're repeating yourself. I'm literally a computer, I noticed.`,
     react: (intent) => {
       const line = (t: string) => `${ISW_CHAN_TAG} ${t}`;
       switch (intent) {
@@ -179,13 +293,31 @@ interface Scene {
   describe: (t: TalkState, s: GameState) => string[];
   exits: Exit[];
   npcs: string[];
+  sprites?: (t: TalkState, s: GameState) => Sprite[];
 }
+
+/* Billboard art for the first-person view (' ' = transparent) */
+const ART = {
+  guard: [" _=_ ", "(o.o)", "/|S|\\", " | | ", " ^ ^ "],
+  guardDown: ["     ", "     ", "     ", "_x_x_", "/___\\"],
+  process: [".--.", "|01|", "|▓▓|", "|10|", "'--'"],
+  vex: [" $$$ ", "(>_<)", "/|$|\\", " | | "],
+  uplink: ["[::]", "|▒▒|", " || ", " || "],
+  hatch: ["▛▀▀▀▜", "▌ ▼ ▐", "▙▄▄▄▟"],
+  terminal: [".---.", "|>_ |", "'---'", " /_\\ "],
+  medkit: ["[+]"],
+  blade: ["  /", " / ", "/  "],
+};
 
 const npcDead = (s: GameState, id: string) => s.enemies.some((e) => e.id === `talk-${id}` && !e.alive);
 
 export const SCENES: Record<string, Scene> = {
   closet: {
-    id: "closet", title: "SERVER CLOSET", view: { x: 3.5, y: 3.5, angle: Math.PI / 2 }, npcs: [],
+    id: "closet", title: "SERVER CLOSET", view: { x: 2.5, y: 1.5, angle: 0.75 }, npcs: [],
+    sprites: () => [
+      { x: 6.5, y: 2.5, art: ART.vex, color: "amber" },
+      { x: 1.5, y: 4.5, art: ART.uplink, color: "cyan" },
+    ],
     describe: () => [
       "Cold. Fans humming. You woke up between two server racks.",
       "A merchant called VEX has set up shop in the corner, grinning at you. (SHOP)",
@@ -211,6 +343,7 @@ export const SCENES: Record<string, Scene> = {
   },
   security: {
     id: "security", title: "SECURITY OFFICE", view: { x: 23.5, y: 4.5, angle: -Math.PI * 0.8 }, npcs: ["guard"],
+    sprites: (_t, s) => [{ x: 21.5, y: 3.5, art: npcDead(s, "guard") ? ART.guardDown : ART.guard, color: "red" }],
     describe: (t, s) => [
       "Monitors everywhere. Most show static. One of them shows YOU, from behind.",
       npcDead(s, "guard")
@@ -221,7 +354,8 @@ export const SCENES: Record<string, Scene> = {
     exits: [{ to: "corridor", words: ["corridor", "back", "out", "south", "s", "west", "w"] }],
   },
   hall: {
-    id: "hall", title: "SERVER HALL", view: { x: 8.5, y: 12.5, angle: 0 }, npcs: ["process"],
+    id: "hall", title: "SERVER HALL", view: { x: 2.5, y: 12.5, angle: -0.15 }, npcs: ["process"],
+    sprites: (t, s) => t.flags.includes("process_gone") || npcDead(s, "process") ? [] : [{ x: 6.5, y: 12.5, art: ART.process, color: "pink" }],
     describe: (t, s) => [
       "Rows of racks hum in the dark. It smells like hot dust and old pizza.",
       t.flags.includes("process_gone") || npcDead(s, "process")
@@ -235,7 +369,11 @@ export const SCENES: Record<string, Scene> = {
     ],
   },
   archive: {
-    id: "archive", title: "ARCHIVE", view: { x: 12.5, y: 11.5, angle: Math.PI }, npcs: [],
+    id: "archive", title: "ARCHIVE", view: { x: 13.5, y: 11.5, angle: Math.PI }, npcs: [],
+    sprites: (t) => [
+      ...(t.flags.includes("took_medkit") ? [] : [{ x: 11.5, y: 11.5, art: ART.medkit, color: "green" as const }]),
+      ...(t.flags.includes("took_blade") ? [] : [{ x: 10.5, y: 10.5, art: ART.blade, color: "amber" as const }]),
+    ],
     describe: (t) => [
       "Old exam papers, a broken ISW banner, a box labelled 'TD 2019 DO NOT OPEN'.",
       t.flags.includes("took_medkit") ? "" : "A MEDKIT sits on a shelf.",
@@ -245,7 +383,11 @@ export const SCENES: Record<string, Scene> = {
     exits: [{ to: "hall", words: ["hall", "server hall", "back", "out"] }],
   },
   east: {
-    id: "east", title: "EAST WING", view: { x: 30.5, y: 12.5, angle: 0.5 }, npcs: ["isw"],
+    id: "east", title: "EAST WING", view: { x: 29.5, y: 11.5, angle: 0.45 }, npcs: ["isw"],
+    sprites: () => [
+      { x: 37.5, y: 15.5, art: ART.hatch, color: "amber" },
+      { x: 33.5, y: 13.5, art: ART.terminal, color: "cyan" },
+    ],
     describe: (t, s) => [
       "A wide room. The maintenance HATCH down to floor 2 sits in the far corner, its keycard slot blinking red.",
       s.puzzles.some((p) => p.id === "talk-terminal" && p.solved) ? "The TERMINAL shows a smiley face. You already cracked it." : "A dusty TERMINAL hums against the wall. (HACK TERMINAL)",
@@ -273,7 +415,7 @@ function describeScene(state: GameState, talk: TalkState): string[] {
 }
 
 export function startTalk(state: GameState): GameState {
-  const talk: TalkState = { scene: "closet", npc: null, suspicion: {}, flags: [], visited: ["closet"] };
+  const talk: TalkState = { scene: "closet", npc: null, suspicion: {}, flags: [], visited: ["closet"], memory: {} };
   return {
     ...state, mode: "TALK", talk,
     log: [
@@ -303,18 +445,37 @@ function startFight(state: GameState, talk: TalkState, npc: NpcDef, lines: strin
 }
 
 function converse(state: GameState, talk: TalkState, npc: NpcDef, input: string): GameState {
-  const intent = detectIntent(input);
+  const { intent, topic, polite, echo } = readInput(input);
   if (intent === "leave") return { ...state, talk: { ...talk, npc: null }, log: out(state, `You stop talking to ${npc.name.split(" //")[0]}.`) };
 
   const before = talk.suspicion[npc.id] ?? 0;
-  const r = npc.react(intent, { flags: talk.flags, suspicion: before, credits: state.player?.credits ?? 0 });
-  const say = r.say.length > 0 ? r.say : [pick(npc.fallback)];
-  const suspicion = Math.max(0, Math.min(100, before + (r.suspicion ?? 0)));
+  const mem = talk.memory?.[npc.id] ?? { claims: [], recent: [] };
+  const claim = intent === "bluff_it" ? "it" : intent === "bluff_boss" ? "boss" : null;
+  const contradicts = claim && npc.contradiction && mem.claims.some((c) => c !== claim);
+  const repeating = intent !== "unknown" && mem.recent.length >= 2 && mem.recent.slice(-2).every((i) => i === intent);
+
+  let r: Reaction;
+  if (contradicts) r = { say: [npc.contradiction!], suspicion: 30 };
+  else if (repeating) r = { say: [npc.repeat], suspicion: npc.enemy ? 5 : 0 };
+  else r = npc.react(intent, { flags: talk.flags, suspicion: before, credits: state.player?.credits ?? 0 });
+
+  // Nothing specific to say: talk about the topic, or repeat their word back, before shrugging
+  let say = r.say;
+  if (say.length === 0 && topic && npc.topics[topic]) { say = [pick(npc.topics[topic]!)]; r = { ...r, suspicion: 0 }; }
+  if (say.length === 0 && echo) say = [pick(npc.echo)(echo)];
+  if (say.length === 0) say = [pick(npc.fallback)];
+
+  const manners = polite && intent !== "insult" && intent !== "threaten" ? -5 : 0;
+  const suspicion = Math.max(0, Math.min(100, before + (r.suspicion ?? 0) + manners));
   const next: TalkState = {
     ...talk,
     npc: r.end ? null : npc.id,
     suspicion: { ...talk.suspicion, [npc.id]: suspicion },
     flags: r.flag && !talk.flags.includes(r.flag) ? [...talk.flags, r.flag] : talk.flags,
+    memory: {
+      ...talk.memory,
+      [npc.id]: { claims: claim && !mem.claims.includes(claim) ? [...mem.claims, claim] : mem.claims, recent: [...mem.recent, intent].slice(-3) },
+    },
   };
   const player = state.player && r.credits ? { ...state.player, credits: state.player.credits + r.credits } : state.player;
   const lines = [...say];

@@ -7,13 +7,24 @@
 import { useMemo, useState } from "react";
 import type { GameState } from "@/game/types";
 import { SCENES, NPCS } from "@/game/talk";
-import { raycast } from "@/game/raycaster";
+import { raycast, type Cell } from "@/game/raycaster";
 import { PORTRAITS } from "@/game/portraits";
 
 interface TalkPanelProps {
   state: GameState;
   dispatch: React.Dispatch<any>;
   narrow: boolean;
+}
+
+/* Merge neighbouring cells with the same colour into one span */
+function runs(row: Cell[]): { cls: string; text: string }[] {
+  const out: { cls: string; text: string }[] = [];
+  for (const cell of row) {
+    const last = out[out.length - 1];
+    if (last && last.cls === cell.cls) last.text += cell.ch;
+    else out.push({ cls: cell.cls, text: cell.ch });
+  }
+  return out;
 }
 
 const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
@@ -23,9 +34,11 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
   const width = narrow ? 34 : 56;
   const height = narrow ? 11 : 14;
 
+  const sprites = scene.sprites?.(talk, state);
+  const spriteKey = JSON.stringify(sprites);
   const view = useMemo(
-    () => raycast(state.maps[0], scene.view.x, scene.view.y, scene.view.angle, width, height),
-    [state.maps, scene, width, height],
+    () => raycast(state.maps[0], scene.view.x, scene.view.y, scene.view.angle, width, height, sprites),
+    [state.maps, scene, width, height, spriteKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const npc = talk.npc ? NPCS[talk.npc] : null;
@@ -51,7 +64,9 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
         {npc && npc.enemy && <span className={suspicion >= 60 ? "text-destructive" : "text-amber-300"}>suspicion {suspicion}%</span>}
       </div>
       <div className="flex gap-3 items-start">
-        <pre className="text-primary/80 leading-none text-[10px] sm:text-[11px] select-none overflow-hidden" aria-hidden="true">{view.join("\n")}</pre>
+        <pre className="rc-view leading-none text-[10px] sm:text-[13px] select-none overflow-hidden" aria-hidden="true">
+          {view.map((row, r) => <div key={r}>{runs(row).map((run, i) => <span key={i} className={run.cls}>{run.text}</span>)}</div>)}
+        </pre>
         {portraitKey && !narrow && (
           <pre className="text-pink-300 leading-tight text-[10px] select-none shrink-0" aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
         )}

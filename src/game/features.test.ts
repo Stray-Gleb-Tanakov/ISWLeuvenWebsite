@@ -2,8 +2,8 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createInitialState, gameReducer } from "./engine";
 import { applyPerk, rollPerkChoices } from "./perks";
 import { createQte, rmEgg, shellResult, normalizeCommand, SHELL_PROBLEMS } from "./qte";
-import { detectIntent } from "./talk";
-import { raycast } from "./raycaster";
+import { detectIntent, readInput } from "./talk";
+import { raycastText as raycast } from "./raycaster";
 import { makeLeech } from "./data";
 import type { ClassName, Enemy, GameState, PerkId } from "./types";
 
@@ -229,6 +229,7 @@ describe("talk mode", () => {
     return gameReducer(createInitialState(), { type: "SELECT_CLASS", className: "Social Engineer" });
   }
   const say = (s: GameState, ...lines: string[]) => lines.reduce((st, text) => gameReducer(st, { type: "TALK_INPUT", text }), s);
+  const lastSaid = (s: GameState) => s.log.filter((l) => !l.startsWith("[suspicion")).at(-1);
 
   it("reads intents from free text", () => {
     expect(detectIntent("hey there")).toBe("greet");
@@ -238,6 +239,37 @@ describe("talk mode", () => {
     expect(detectIntent("I'll pay you 30 credits")).toBe("bribe");
     expect(detectIntent("you're a zombie process, just exit")).toBe("logic");
     expect(detectIntent("purple monkey dishwasher")).toBe("unknown");
+  });
+
+  it("scores mixed sentences: the strongest intent wins", () => {
+    expect(detectIntent("I'm from IT, give me the key or else")).toBe("threaten");
+    expect(readInput("thanks, I'm from tech support, could you please help").intent).toBe("bluff_it");
+    expect(readInput("thanks, I'm from tech support, could you please help").polite).toBe(true);
+  });
+
+  it("topics get their own lines, unknown words are echoed back in character", () => {
+    let s = say(talkRun(), "south", "security", "talk to guard", "how is the coffee down here");
+    expect(lastSaid(s)).toContain("coffee machine");
+    s = say(s, "do you like thomas");
+    expect(lastSaid(s)).toContain("3 AM");
+    s = say(s, "quantum dishwasher");
+    expect(lastSaid(s)).toMatch(/dishwasher|Dishwasher/);
+  });
+
+  it("remembers your claims: IT and then the boss doesn't add up", () => {
+    const s = say(talkRun(), "south", "security", "talk to guard", "I'm from IT", "actually the boss sent me");
+    expect(s.log.some((l) => l.includes("Which is it?"))).toBe(true);
+  });
+
+  it("notices when you say the same thing three times", () => {
+    const s = say(talkRun(), "south", "security", "talk to guard", "nice hat", "nice shoes", "nice coffee");
+    expect(lastSaid(s)).toContain("You said that already");
+  });
+
+  it("manners lower suspicion", () => {
+    const rude = say(talkRun(), "south", "security", "talk to guard", "the boss sent me");
+    const polite = say(talkRun(), "south", "security", "talk to guard", "sorry, the boss sent me");
+    expect(polite.talk!.suspicion.guard).toBeLessThan(rude.talk!.suspicion.guard);
   });
 
   it("the whole run is a text adventure", () => {
