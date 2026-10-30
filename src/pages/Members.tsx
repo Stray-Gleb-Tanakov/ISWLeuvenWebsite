@@ -1,5 +1,6 @@
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
+import { memberIntro } from "@/data/site-data";
 
 const Members = () => (
     <PageLayout>
@@ -21,9 +22,7 @@ const Members = () => (
 </h2>
 <div className="bg-card border border-border p-4 sm:p-6">
 <p className="text-foreground leading-relaxed">
-    A member of ISW is a student who is actively involved in the association.
-    Members have access to all services and activities offered by ISW, and they can also contribute to the association by participating in projects, events, and committees or just use our services.
-    Membership is open to all students who are interested in computer science and want to be part of our club.
+    {memberIntro}
 </p>
 <p className="text-muted-foreground mt-4 text-sm">
 # requirements?<br/>

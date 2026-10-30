@@ -3,14 +3,17 @@
    Maps, classes, enemies, items, NPCs, puzzles
    ==================================================== */
 
-import type { ClassName, Stats, Enemy, NPC, GroundItem, Item, Door, DialogueNode, Puzzle, Skill, StatusType } from "./types";
+import type { ClassName, Stats, Enemy, NPC, GroundItem, Item, Door, DialogueNode, Puzzle, PuzzleType, Skill, StatusType, Merchant } from "./types";
+import { BOOKS, bookEncode, canBookEncode } from "./book";
+import { sha1Hex } from "./sha1";
+import { floorRng, shuffleFloor } from "./placement";
 
 /* ----- Class definitions with MP ----- */
 
 export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special: string; skills: Skill[] }> = {
   Netrunner: {
     desc: "High INT hacker. Weak body, devastating exploits.",
-    special: "ICE Breaker (2x INT damage, ignores DEF)",
+    special: "ICE Breaker — HACK QTE: type the code fast (up to 3x INT, ignores DEF)",
     stats: { maxHp: 120, hp: 120, maxMp: 200, mp: 200, atk: 5, def: 2, spd: 8, int: 16 },
     skills: [
       { name: "ICE Breaker", mpCost: 20, cooldown: 0, currentCooldown: 0, description: "2x INT pure damage" },
@@ -20,7 +23,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   },
   Cyborg: {
     desc: "Chrome-plated bruiser. Tanks hits, hits harder.",
-    special: "Overclock (3x ATK, takes recoil damage)",
+    special: "Overclock — GAUGE QTE: stop the needle in the green (up to 3.5x ATK, no recoil on perfect; a miss backfires on you)",
     stats: { maxHp: 200, hp: 200, maxMp: 60, mp: 60, atk: 20, def: 8, spd: 4, int: 3 },
     skills: [
       { name: "Overclock", mpCost: 15, cooldown: 0, currentCooldown: 0, description: "3x ATK, recoil damage" },
@@ -30,32 +33,67 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   },
   Ghost: {
     desc: "Invisible operative. Fast, lethal, fragile.",
-    special: "Backstab (guaranteed crit, 2.5x damage)",
+    special: "Shadow Combo — ARROW QTE: repeat the sequence (more hits per arrow, bleed on perfect)",
     stats: { maxHp: 150, hp: 150, maxMp: 120, mp: 120, atk: 15, def: 6, spd: 18, int: 9 },
     skills: [
-      { name: "Backstab", mpCost: 18, cooldown: 0, currentCooldown: 0, description: "2.5x crit damage" },
+      { name: "Shadow Combo", mpCost: 18, cooldown: 0, currentCooldown: 0, description: "Arrow QTE combo, bleed on perfect" },
       { name: "Smoke Bomb", mpCost: 12, cooldown: 3, currentCooldown: 0, description: "Guaranteed flee + stealth" },
       { name: "Poison Blade", mpCost: 10, cooldown: 2, currentCooldown: 0, description: "ATK + poison 3 turns" },
     ],
   },
+  Sysadmin: {
+    desc: "Keeps the servers alive. Fixes things by typing real Linux commands.",
+    special: "sudo fix — SHELL QTE: a real error appears, type the command that fixes it to deploy/repair a combat drone",
+    stats: { maxHp: 140, hp: 140, maxMp: 140, mp: 140, atk: 10, def: 6, spd: 8, int: 13 },
+    skills: [
+      { name: "sudo fix", mpCost: 18, cooldown: 0, currentCooldown: 0, description: "Shell QTE: deploy or repair your drone" },
+      { name: "kill -9", mpCost: 15, cooldown: 3, currentCooldown: 0, description: "2x INT damage, ignores DEF" },
+      { name: "Restore Backup", mpCost: 25, cooldown: 5, currentCooldown: 0, description: "Heal 30% max HP" },
+    ],
+  },
+  "Script Kiddie": {
+    desc: "Never wrote a line of code. Copies everyone else's. Somehow it works.",
+    special: "Copy-Paste Exploit — a random other class's QTE every time",
+    stats: { maxHp: 115, hp: 115, maxMp: 130, mp: 130, atk: 11, def: 4, spd: 11, int: 11 },
+    skills: [
+      { name: "Copy-Paste Exploit", mpCost: 15, cooldown: 0, currentCooldown: 0, description: "Random class QTE + its effect" },
+      { name: "Google It", mpCost: 10, cooldown: 3, currentCooldown: 0, description: "Random: heal, big hit or stun" },
+      { name: "LOIC", mpCost: 20, cooldown: 4, currentCooldown: 0, description: "DDoS: 3 weak hits" },
+    ],
+  },
+  "Social Engineer": {
+    desc: "Talks their way through everything. The whole run becomes a text adventure: type what you say.",
+    special: "Gaslight — HACK QTE when a conversation turns into a fight",
+    stats: { maxHp: 110, hp: 110, maxMp: 110, mp: 110, atk: 9, def: 4, spd: 12, int: 14 },
+    skills: [
+      { name: "Gaslight", mpCost: 15, cooldown: 0, currentCooldown: 0, description: "Hack QTE, INT damage" },
+      { name: "Smooth Talk", mpCost: 10, cooldown: 3, currentCooldown: 0, description: "Stun the enemy for 1 turn" },
+      { name: "Fake Badge", mpCost: 15, cooldown: 4, currentCooldown: 0, description: "Walk away from the fight" },
+    ],
+  },
+};
+
+/* Classes that have to be unlocked first */
+export const LOCKED_CLASSES: Partial<Record<ClassName, { hint: string; unlocked: (flagsFound: number) => boolean }>> = {
+  "Script Kiddie": { hint: "Upload any hidden website flag at a U to unlock", unlocked: (flags) => flags >= 1 },
 };
 
 /* ----- Floor maps ----- */
 /* Legend: @ = start, E = enemy, B = boss, M = mini-boss, N = NPC,
-   T = terminal puzzle, D = locked door, > = stairs down,
+   T = terminal puzzle, D = locked door, > = stairs down, $ = merchant, U = flag uplink,
    + = health, K = keycard, W = weapon, A = armor, X = trap */
 
 const FLOOR_1 = [
   "########################################",
   "#@.....#........#.........#............#",
-  "#......#........#.........#............#",
+  "#.....$#........#.........#............#",
   "#......#...E....#....N....#.....+.....#",
-  "#......#........#.........#............#",
+  "#U.....#........#.........#............#",
   "####.###........#.........####.########",
   "#......................................#",
   "#.......E.................K............#",
   "#....................................E.#",
-  "#........######.########.#............#",
+  "#........###.##.####.###.#............#",
   "#........#....#.#......#.#............#",
   "#........#.+..#.#..W...#.#............#",
   "#........#....#.#......#.#....T.......#",
@@ -68,8 +106,8 @@ const FLOOR_1 = [
 const FLOOR_2 = [
   "########################################",
   "#@.........#.........#................#",
-  "#..........#.........#................#",
-  "#..........#....E....#.......N........#",
+  "#.........$#.........#................#",
+  "#U.........#....E....#.......N........#",
   "#..........#.........#................#",
   "#..........#.........#####.###########",
   "#..........#..........................#",
@@ -89,8 +127,8 @@ const FLOOR_2 = [
 const FLOOR_3 = [
   "########################################",
   "#@.....................................#",
-  "#......................................#",
-  "#....N.......................T.........#",
+  "#.........$............................#",
+  "#U...N.......................T.........#",
   "#......................................#",
   "#.....###..##.###.##.######............#",
   "#.....#....#.#....#.#.....#............#",
@@ -112,8 +150,8 @@ const FLOOR_3 = [
 const FLOOR_4 = [
   "########################################",
   "#@.........X.........X................#",
-  "#......................................#",
-  "#....N...........E...........+........#",
+  "#.......$..............................#",
+  "#U...N...........E...........+........#",
   "#......................................#",
   "####.##########.####.#################",
   "#..........#.......#.................X#",
@@ -123,7 +161,7 @@ const FLOOR_4 = [
   "#..........................T...........#",
   "#..E.............X.............E......#",
   "#......................................#",
-  "#.....######.######...................#",
+  "#.....###.##.###.##...................#",
   "#.....#.T..#.#..W.#.......N...........#",
   "#.....#....#.#....#...................#",
   "#.....######.######...................#",
@@ -136,8 +174,8 @@ const FLOOR_4 = [
 const FLOOR_5 = [
   "########################################",
   "#@.....X.....X.....X.....X............#",
-  "#......................................#",
-  "#..N...................................#",
+  "#.......$..............................#",
+  "#U.N...................................#",
   "#.........................T............#",
   "###.########.########.################",
   "#......#........#........#............#",
@@ -160,8 +198,8 @@ const FLOOR_5 = [
 const FLOOR_6 = [
   "########################################",
   "#@.....................................#",
-  "#......................................#",
-  "#....N.................................#",
+  "#.......$..............................#",
+  "#U...N.................................#",
   "#......................................#",
   "#......................................#",
   "#.....+...........+...................#",
@@ -252,7 +290,7 @@ const MINI_BOSS_TEMPLATES: Record<number, { name: string; stats: Stats; xp: numb
 
 const BOSS_DATA = {
   name: "NEXUS — Rogue AI",
-  stats: { maxHp: 400, hp: 400, maxMp: 0, mp: 0, atk: 28, def: 16, spd: 10, int: 22 },
+  stats: { maxHp: 320, hp: 320, maxMp: 0, mp: 0, atk: 25, def: 14, spd: 10, int: 22 },
   xp: 500,
   ac: 20,
   onHitEffect: "burn" as StatusType,
@@ -512,7 +550,15 @@ const TIER6_PHRASES = [
   "W4R3Z_3L3CT10N_4ND_D1STR1BUT10N_N3TWORK",
   "3XPL01T1NG_S1D3_CH4NN3L_VULN3R4B1L1T13S",
   "R3V3RS3_3NG1N33R1NG_4ND_D3C0D1NG_4LG0R1THMS",
-  "P13T3R_D3_W4T3RG13t3R",
+  "P13T3R_D3_W4T3RG13T3R",
+];
+
+/* Leaked-password style words for the SHA-1 puzzle: unsalted hashes of these
+   are in every public lookup table (crackstation, hashes.com) and in rockyou.txt */
+const HASH_WORDS = [
+  "dragon", "shadow", "monkey", "hunter", "master", "letmein", "freedom", "whatever",
+  "trustno1", "qwerty", "starwars", "iloveyou", "princess", "sunshine", "football",
+  "computer", "superman", "matrix", "pokemon", "batman",
 ];
 
 const VIGENERE_KEYS_EASY = ["KEY", "ICE"];
@@ -522,13 +568,35 @@ const VIGENERE_KEYS_NIGHTMARE = ["CRYPTANALYSIS", "VULNERABILITY", "INFRASTRUCTU
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 
-function pickWord(floor: number): string {
-  if (floor <= 0) return pick(TIER1_WORDS);
-  if (floor <= 1) return pick(TIER2_WORDS);
-  if (floor <= 2) return pick(TIER3_PHRASES);
-  if (floor <= 3) return pick(TIER4_PHRASES);
-  if (floor <= 4) return pick(TIER5_PHRASES);
-  return pick(TIER6_PHRASES);
+const WORD_TIERS = [TIER1_WORDS, TIER2_WORDS, TIER3_PHRASES, TIER4_PHRASES, TIER5_PHRASES, TIER6_PHRASES];
+
+/* `fits` restricts the pool to words a cipher can represent unambiguously */
+function pickWord(floor: number, fits: (w: string) => boolean = () => true): string {
+  const tier = WORD_TIERS[Math.min(Math.max(floor, 0), WORD_TIERS.length - 1)];
+  const usable = tier.filter(fits);
+  return pick(usable.length > 0 ? usable : tier);
+}
+
+/* Undo leetspeak, for ciphers that only work on letters */
+function deleet(text: string): string {
+  return text.replace(/[013457]/g, (d) => ({ "0": "O", "1": "I", "3": "E", "4": "A", "5": "S", "7": "T" })[d]!);
+}
+
+/* Apply a letters-only cipher to each "_"-separated word, keeping the underscores */
+function perWord(text: string, encrypt: (word: string) => string): string {
+  return text.split("_").map(encrypt).join("_");
+}
+
+/* Phone keypad multi-tap: press a key N times for its Nth character */
+const KEYPAD = ["0", "1", "ABC2", "DEF3", "GHI4", "JKL5", "MNO6", "PQRS7", "TUV8", "WXYZ9"];
+function keypadEncode(text: string): string {
+  return [...text].map((ch) => {
+    if (ch === "_") return "0";
+    if (ch === "0") return "00";
+    const key = KEYPAD.findIndex((k, i) => i >= 2 && k.includes(ch));
+    if (key === -1) return ch === "1" ? "1" : ch;
+    return String(key).repeat(KEYPAD[key].indexOf(ch) + 1);
+  }).join(" ");
 }
 
 /* ----- Cipher functions ----- */
@@ -536,6 +604,7 @@ function pickWord(floor: number): string {
 function caesarEncrypt(text: string, shift: number): string {
   return text.split("").map(ch => {
     if (ch >= "A" && ch <= "Z") return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
+    if (ch >= "a" && ch <= "z") return String.fromCharCode(((ch.charCodeAt(0) - 97 + shift) % 26) + 97);
     if (ch >= "0" && ch <= "9") return String.fromCharCode(((ch.charCodeAt(0) - 48 + shift) % 10) + 48);
     return ch;
   }).join("");
@@ -628,11 +697,11 @@ function toOctal(text: string): string {
   return text.split("").map(ch => ch.charCodeAt(0).toString(8).padStart(3, "0")).join(" ");
 }
 
-/* Triple encoding: base64 → reverse → caesar */
+/* Triple encoding: base64 → reverse → caesar (case kept, base64 is case-sensitive) */
 function tripleEncode(text: string, shift: number): string {
   const b64 = btoa(text);
   const rev = b64.split("").reverse().join("");
-  return caesarEncrypt(rev.toUpperCase(), shift);
+  return caesarEncrypt(rev, shift);
 }
 
 /* Beaufort cipher: like Vigenère but subtracts plaintext from key */
@@ -656,16 +725,15 @@ function affineEncrypt(text: string, a: number, b: number): string {
   }).join("");
 }
 
-/* Columnar transposition cipher */
+/* Columnar transposition cipher (irregular: no padding, short last row) */
 function columnarEncrypt(text: string, key: string): string {
   const cols = key.length;
   const rows = Math.ceil(text.length / cols);
-  const padded = text.padEnd(rows * cols, "X");
-  const order = [...key].map((c, i) => ({ c, i })).sort((a, b) => a.c.localeCompare(b.c)).map(x => x.i);
+  const order = [...key].map((c, i) => ({ c, i })).sort((a, b) => a.c.localeCompare(b.c) || a.i - b.i).map(x => x.i);
   let result = "";
   for (const col of order) {
     for (let row = 0; row < rows; row++) {
-      result += padded[row * cols + col];
+      result += text[row * cols + col] ?? "";
     }
   }
   return result;
@@ -714,11 +782,10 @@ function polybiusEncrypt(text: string): string {
 
 /* Autokey Vigenère: key extends with plaintext */
 function autokeyEncrypt(text: string, seed: string): string {
-  let fullKey = seed;
+  const fullKey = seed + text.replace(/[^A-Z]/g, ""); // key = seed followed by the plaintext letters
   let ki = 0;
   return text.split("").map(ch => {
     if (ch >= "A" && ch <= "Z") {
-      if (ki >= fullKey.length) fullKey += ch; // extend key with plaintext BEFORE encryption
       const shift = fullKey.charCodeAt(ki) - 65;
       ki++;
       return String.fromCharCode(((ch.charCodeAt(0) - 65 + shift) % 26) + 65);
@@ -766,7 +833,7 @@ function adfgvxEncrypt(text: string, colKey: string): string {
   const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const labels = ["A", "D", "F", "G", "V", "X"];
   // Polybius 6x6
-  const fractionated = text.replace(/[^A-Z0-9]/g, "").split("").map(ch => {
+  const fractionated = text.split("").map(ch => {
     const idx = alpha.indexOf(ch);
     if (idx === -1) return "";
     return labels[Math.floor(idx / 6)] + labels[idx % 6];
@@ -791,25 +858,24 @@ function nightmareEncode(text: string, xorKey: number, shift: number): string {
   return atbashEncrypt(step3);
 }
 
-type PuzzleType = "caesar" | "reverse" | "substitution" | "vigenere" | "atbash" | "railfence" | "base64" | "hex" | "binary" | "double" | "rot47" | "xor" | "morse" | "octal" | "triple" | "beaufort" | "affine" | "columnar" | "playfair" | "polybius" | "autokey" | "bacon" | "bifid" | "adfgvx" | "quadruple" | "nightmare";
-
 /* Floor → available cipher types — MASSIVE difficulty scaling */
 const FLOOR_CIPHERS: PuzzleType[][] = [
-  /* 0 — baby */ ["caesar", "reverse", "atbash"],
-  /* 1 — easy */ ["substitution", "morse", "base64", "rot47"],
-  /* 2 — medium */ ["vigenere", "railfence", "hex", "affine", "beaufort"],
-  /* 3 — hard */ ["binary", "xor", "double", "columnar", "playfair", "polybius"],
-  /* 4 — nightmare */ ["autokey", "bacon", "bifid", "triple", "adfgvx", "quadruple"],
-  /* 5 — impossible */ ["bifid", "adfgvx", "quadruple", "nightmare", "playfair"],
+  /* 0 — baby */ ["caesar", "reverse", "atbash", "keypad"],
+  /* 1 — easy */ ["substitution", "morse", "base64", "rot47", "keypad", "book_acrostic"],
+  /* 2 — medium */ ["vigenere", "railfence", "hex", "affine", "beaufort", "sha1", "book_about"],
+  /* 3 — hard */ ["binary", "xor", "double", "columnar", "playfair", "polybius", "sha1", "book_events"],
+  /* 4 — nightmare */ ["autokey", "bacon", "bifid", "triple", "adfgvx", "quadruple", "book_members"],
+  /* 5 — impossible */ ["bifid", "adfgvx", "quadruple", "nightmare", "playfair", "book_events"],
 ];
 
-export function createPuzzle(floor: number, x: number, y: number, id: string): Puzzle {
-  const innerWord = pickWord(floor);
-  // The answer is always ISW{...} format
-  const flagAnswer = `ISW{${innerWord}}`;
-  // We encrypt only the inner word, player must type the full ISW{...} flag
+const BOOK_RULES = "Words are split on spaces and every word counts (start at 1). Inside a word count only letters/digits. 'x' = literal character.";
+
+export function createPuzzle(floor: number, x: number, y: number, id: string, forceType?: PuzzleType): Puzzle {
+  // The answer is always ISW{...} format; only the inner word is encrypted.
+  // Cases below may swap innerWord for one their cipher can represent.
+  let innerWord = pickWord(floor);
   const available = FLOOR_CIPHERS[Math.min(floor, FLOOR_CIPHERS.length - 1)];
-  const type = available[Math.floor(Math.random() * available.length)];
+  const type = forceType ?? available[Math.floor(Math.random() * available.length)];
 
   let cipherText: string;
   let hint: string;
@@ -886,14 +952,14 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
     case "triple": {
       const shift = 3 + Math.floor(Math.random() * 5);
       cipherText = tripleEncode(innerWord, shift);
-      hint = `Triple: Base64 → Reverse → Caesar(shift ${shift}). Encrypted: ${cipherText}\nAnswer format: ISW{original_text}`;
+      hint = `Triple: Base64 → Reverse → Caesar(shift ${shift}, case kept, digits mod 10). Encrypted: ${cipherText}\nAnswer format: ISW{original_text}`;
       break;
     }
     case "beaufort": {
       const keys = floor >= 4 ? VIGENERE_KEYS_NIGHTMARE : VIGENERE_KEYS_HARD;
       const key = pick(keys);
-      cipherText = beaufortEncrypt(innerWord.replace(/[^A-Z]/g, ""), key);
-      hint = `Beaufort cipher (key subtracts plaintext), key="${key}". Encrypted: ${cipherText}\nPlaintext had non-alpha chars stripped. Answer format: ISW{decrypted}`;
+      cipherText = beaufortEncrypt(innerWord, key);
+      hint = `Beaufort cipher (key subtracts plaintext), key="${key}". Digits and "_" are left as-is. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "affine": {
@@ -907,60 +973,93 @@ export function createPuzzle(floor: number, x: number, y: number, id: string): P
     case "columnar": {
       const colKeys = ["HACK", "NEXUS", "CIPHER", "BREACH", "QUANTUM"];
       const key = pick(colKeys);
-      cipherText = columnarEncrypt(innerWord.replace(/[^A-Z0-9]/g, ""), key);
-      hint = `Columnar transposition, key="${key}" (alphabetical column order). Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      cipherText = columnarEncrypt(innerWord, key);
+      hint = `Columnar transposition, key="${key}" (read columns in alphabetical key order, irregular: no padding). Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "playfair": {
+      // Letters only and I=J: use the de-leeted phrase, without J, one word at a time
+      innerWord = deleet(pickWord(floor, (w) => !deleet(w).includes("J")));
       const pfKeys = ["SECURITY", "MAINFRAME", "CYBERPUNK", "PROTOCOL"];
       const key = pick(pfKeys);
-      cipherText = playfairEncrypt(innerWord.replace(/[^A-Z]/g, ""), key);
-      hint = `Playfair cipher (5×5 grid, I=J), key="${key}". Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      cipherText = perWord(innerWord, (w) => playfairEncrypt(w, key));
+      hint = `Playfair cipher (5×5 grid, I=J), key="${key}". Each word encrypted separately, "_" kept. Drop the filler X's after decrypting. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "polybius":
-      cipherText = polybiusEncrypt(innerWord.replace(/[^A-Z]/g, ""));
-      hint = `Polybius square (ADFGX encoding, 5×5 grid, I=J). Encoded: ${cipherText}\nAnswer format: ISW{decoded}`;
+      innerWord = pickWord(floor, (w) => !w.includes("J"));
+      cipherText = polybiusEncrypt(innerWord);
+      hint = `Polybius square (ADFGX encoding, 5×5 grid, I=J). Digits and "_" are left as-is. Encoded: ${cipherText}\nAnswer format: ISW{decoded}`;
       break;
     case "autokey": {
       const seeds = ["KEY", "HACK", "NEXUS", "BREACH", "MAINFRAME"];
       const seed = pick(seeds);
-      cipherText = autokeyEncrypt(innerWord.replace(/[^A-Z]/g, ""), seed);
-      hint = `Autokey Vigenère (key extends with plaintext), seed="${seed}". Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      cipherText = autokeyEncrypt(innerWord, seed);
+      hint = `Autokey Vigenère (key extends with plaintext letters), seed="${seed}". Digits and "_" are left as-is. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "bacon":
-      cipherText = baconEncrypt(innerWord.replace(/[^A-Z]/g, ""));
-      hint = `Bacon's cipher (5-bit binary a/b encoding, I=J). Encoded: ${cipherText}\nAnswer format: ISW{decoded}`;
+      innerWord = pickWord(floor, (w) => !w.includes("J"));
+      cipherText = baconEncrypt(innerWord);
+      hint = `Bacon's cipher (5-bit binary a/b encoding, A=aaaaa … Z=bbaab, I=J). Digits and "_" are left as-is. Encoded: ${cipherText}\nAnswer format: ISW{decoded}`;
       break;
     case "bifid": {
+      innerWord = deleet(pickWord(floor, (w) => !deleet(w).includes("J")));
       const bfKeys = ["SECURITY", "MAINFRAME", "QUANTUM", "PROTOCOL"];
       const key = pick(bfKeys);
-      cipherText = bifidEncrypt(innerWord.replace(/[^A-Z]/g, ""), key);
-      hint = `Bifid cipher (Polybius + transposition, I=J), key="${key}". Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
+      cipherText = perWord(innerWord, (w) => bifidEncrypt(w, key));
+      hint = `Bifid cipher (Polybius + transposition, I=J), key="${key}". Each word encrypted separately, "_" kept. Encrypted: ${cipherText}\nAnswer format: ISW{decrypted}`;
       break;
     }
     case "adfgvx": {
       const colKeys = ["HACK", "NEXUS", "CIPHER"];
       const key = pick(colKeys);
-      cipherText = adfgvxEncrypt(innerWord.replace(/[^A-Z0-9]/g, ""), key);
-      hint = `ADFGVX cipher (6×6 Polybius + columnar), column key="${key}". Encrypted: ${cipherText}\nAnswer format: ISW{decoded}`;
+      cipherText = perWord(innerWord, (w) => adfgvxEncrypt(w, key));
+      hint = `ADFGVX cipher (6×6 Polybius A-Z then 0-9, rows/cols ADFGVX + irregular columnar), column key="${key}". Each word encrypted separately, "_" kept. Encrypted: ${cipherText}\nAnswer format: ISW{decoded}`;
       break;
     }
     case "quadruple": {
       const key = pick(VIGENERE_KEYS_NIGHTMARE);
-      cipherText = quadrupleEncode(innerWord.replace(/[^A-Z]/g, ""), key);
-      hint = `Quadruple: Vigenère(key="${key}") → Base64 → Reverse → ROT47. Encrypted: ${cipherText}\nAnswer format: ISW{original}`;
+      cipherText = quadrupleEncode(innerWord, key);
+      hint = `Quadruple: Vigenère(key="${key}", letters only) → Base64 → Reverse → ROT47. Encrypted: ${cipherText}\nAnswer format: ISW{original}`;
       break;
     }
     case "nightmare": {
       const xKey = 42 + floor * 13;
       const shift = 7 + floor * 3;
-      cipherText = nightmareEncode(innerWord.replace(/[^A-Z0-9]/g, ""), xKey, shift);
-      hint = `NIGHTMARE: XOR(key=0x${xKey.toString(16).toUpperCase()}) → Hex → Reverse → Caesar(shift ${shift}) → Atbash.\nEncrypted: ${cipherText}\nAnswer format: ISW{original}`;
+      cipherText = nightmareEncode(innerWord, xKey, shift);
+      hint = `NIGHTMARE: XOR(key=0x${xKey.toString(16).toUpperCase()}) → Hex → Reverse bytes → Caesar(shift ${shift}, digits mod 10) → Atbash.\nEncrypted: ${cipherText}\nAnswer format: ISW{original}`;
+      break;
+    }
+    case "sha1": {
+      const word = pick(HASH_WORDS);
+      innerWord = word.toUpperCase();
+      cipherText = sha1Hex(word);
+      hint = `Leaked password hash (unsalted SHA-1 of a lowercase password): ${cipherText}\nCrack it or look it up. Answer format: ISW{password}`;
+      break;
+    }
+    case "keypad":
+      cipherText = keypadEncode(innerWord);
+      hint = `Old phone keypad, multi-tap (2=ABC, 22=B, 7777=S …, 0 = "_", 00 = digit 0). Pressed: ${cipherText}\nAnswer format: ISW{typed_text}`;
+      break;
+    case "book_acrostic": {
+      innerWord = pickWord(floor, (w) => canBookEncode(w, BOOKS.about, true));
+      cipherText = bookEncode(innerWord, BOOKS.about, true);
+      hint = `Book cipher, the book is ${BOOKS.about.page}. Each number N = first letter of word N.\n${BOOK_RULES}\nCipher: ${cipherText}\nAnswer format: ISW{text}`;
+      break;
+    }
+    case "book_about":
+    case "book_events":
+    case "book_members": {
+      const book = BOOKS[type.slice(5) as "about" | "events" | "members"];
+      const format = book.sections.length > 1 ? "section.word.letter" : "word.letter";
+      innerWord = pickWord(floor, (w) => canBookEncode(w, book));
+      cipherText = bookEncode(innerWord, book);
+      hint = `Book cipher, the book is ${book.page}. Each token is ${format}.\n${BOOK_RULES}\nCipher: ${cipherText}\nAnswer format: ISW{text}`;
       break;
     }
   }
+  const flagAnswer = `ISW{${innerWord}}`;
 
   const rewardItems: Item[] = [
     { id: `pr-${id}`, name: "Mana Cell", description: "Restores 30 MP", type: "mana", value: 30 },
@@ -986,8 +1085,11 @@ export interface TrapTile {
   triggered: boolean;
 }
 
-export function parseFloor(floor: number) {
-  const map = FLOOR_MAPS[floor];
+/* `seed` shuffles enemies/items/traps/terminals (see placement.ts); without it the hand-made layout is used */
+export function parseFloor(floor: number, seed?: number) {
+  const map = seed === undefined ? FLOOR_MAPS[floor] : shuffleFloor(FLOOR_MAPS[floor], floorRng(seed, floor));
+  const merchants: Merchant[] = [];
+  const uplinks: { x: number; y: number; floor: number }[] = [];
   const enemies: Enemy[] = [];
   const npcs: NPC[] = [];
   const groundItems: GroundItem[] = [];
@@ -1065,6 +1167,14 @@ export function parseFloor(floor: number) {
           cleaned += ".";
           break;
         }
+        case "U":
+          uplinks.push({ x, y, floor });
+          cleaned += ".";
+          break;
+        case "$":
+          merchants.push({ id: `m${floor}`, floor, x, y, visits: 0, purchases: 0, haggle: "none" });
+          cleaned += ".";
+          break;
         case "X": {
           traps.push({ x, y, floor, triggered: false });
           cleaned += "."; // traps are walkable but hidden
@@ -1094,7 +1204,7 @@ export function parseFloor(floor: number) {
     return cleaned;
   });
 
-  return { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps, playerStart };
+  return { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps, merchants, uplinks, playerStart };
 }
 
 /* ----- Floor names ----- */
@@ -1107,8 +1217,19 @@ export const FLOOR_NAMES = [
   "FLOOR 6 — NEXUS Chamber",
 ];
 
+/* ----- Leech Bot: steals credits instead of HP, then tries to run ----- */
+export function makeLeech(floor: number, x: number, y: number, id: string): Enemy {
+  return {
+    id, name: "Leech Bot", symbol: "E",
+    stats: { maxHp: 24 + floor * 14, hp: 24 + floor * 14, maxMp: 0, mp: 0, atk: 6 + floor * 2, def: 2 + floor, spd: 14, int: 4 },
+    xpReward: 15 + floor * 10, alive: true, x, y, floor, ac: 11 + floor,
+    statusEffects: [], behavior: "leech", stolen: 0,
+  };
+}
+
 /* ----- Random spawn helper ----- */
 export function createRandomEnemy(floor: number, x: number, y: number, idSuffix: string): Enemy {
+  if (Math.random() < 0.15) return makeLeech(floor, x, y, `spawn-${floor}-${idSuffix}`);
   const templates = ENEMY_TEMPLATES[floor] || ENEMY_TEMPLATES[0];
   const tmpl = templates[Math.floor(Math.random() * templates.length)];
   return {

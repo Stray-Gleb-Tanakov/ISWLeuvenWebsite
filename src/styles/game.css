@@ -1,0 +1,92 @@
+/* =============================================
+   MAINFRAME BREACH — themes (cosmetics, Vampiric Code)
+   and screen effects. Themes re-colour everything inside
+   the game by overriding the design tokens locally.
+   ============================================= */
+
+.game-theme-amber, .game-theme-ice, .game-theme-vapor, .game-theme-chan, .game-theme-blood {
+  --foreground: var(--t-hue) 100% var(--t-light);
+  --card-foreground: var(--t-hue) 100% var(--t-light);
+  --primary: var(--t-hue) 100% var(--t-light);
+  --accent: var(--t-hue) 100% calc(var(--t-light) - 5%);
+  --secondary-foreground: var(--t-hue) 100% var(--t-light);
+  --muted-foreground: var(--t-hue) 60% 45%;
+  --border: var(--t-hue) 50% 22%;
+  --ring: var(--t-hue) 100% var(--t-light);
+  --card: var(--t-hue) 15% 6%;
+  --terminal-text-glow: 0 0 5px hsl(var(--t-hue) 100% var(--t-light) / 0.8), 0 0 10px hsl(var(--t-hue) 100% var(--t-light) / 0.5);
+}
+
+.game-theme-amber { --t-hue: 38; --t-light: 55%; }
+.game-theme-ice { --t-hue: 190; --t-light: 60%; }
+.game-theme-vapor { --t-hue: 295; --t-light: 70%; }
+.game-theme-chan { --t-hue: 330; --t-light: 70%; }
+
+/* Vampiric Code: the mainframe bleeds */
+.game-theme-blood {
+  --t-hue: 0;
+  --t-light: 48%;
+  --card: 0 40% 5%;
+  --border: 0 70% 22%;
+}
+
+/* ----- Screen effects ----- */
+
+@keyframes game-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(3px, 1px); }
+}
+
+@keyframes game-shake-big {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  10% { transform: translate(-10px, 6px) rotate(-1deg); }
+  30% { transform: translate(10px, -6px) rotate(1deg); }
+  50% { transform: translate(-8px, -4px) rotate(-0.5deg); }
+  70% { transform: translate(8px, 4px) rotate(0.5deg); }
+  90% { transform: translate(-4px, 2px); }
+}
+
+@keyframes game-flash {
+  from { opacity: 0.45; }
+  to { opacity: 0; }
+}
+
+.fx-shake { animation: game-shake 0.3s ease-out; }
+.fx-shake-big { animation: game-shake-big 0.9s ease-out; }
+
+.fx-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: game-flash 0.45s ease-out forwards;
+  z-index: 20;
+}
+.fx-flash-hit { background: hsl(0 90% 50%); }
+.fx-flash-crit { background: hsl(0 0% 100%); }
+.fx-flash-perfect { background: hsl(45 100% 55%); }
+.fx-flash-backfire { background: repeating-linear-gradient(90deg, hsl(0 90% 50%), hsl(0 90% 50%) 8px, hsl(0 0% 100%) 8px, hsl(0 0% 100%) 16px); }
+.fx-flash-nuke { background: hsl(0 0% 100%); animation-duration: 1.4s; }
+
+/* Paranoia: fake warnings */
+@keyframes game-glitch {
+  0% { opacity: 0; transform: translateX(-6px) skewX(10deg); }
+  10% { opacity: 1; transform: translateX(4px) skewX(-6deg); }
+  20% { transform: translateX(0) skewX(0); }
+  85% { opacity: 1; }
+  90% { opacity: 0.2; transform: translateX(3px); }
+  100% { opacity: 0; }
+}
+
+.paranoia-banner {
+  animation: game-glitch 1.6s steps(12) forwards;
+  text-shadow: 2px 0 hsl(0 100% 50%), -2px 0 hsl(190 100% 50%);
+}
+
+/* ISW-Chan's log lines */
+.isw-chan-line {
+  color: hsl(330 100% 70%);
+  text-shadow: 1px 0 hsl(190 100% 50% / 0.6), -1px 0 hsl(0 100% 50% / 0.6);
+}

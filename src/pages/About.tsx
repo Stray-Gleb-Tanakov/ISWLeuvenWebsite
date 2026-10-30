@@ -1,5 +1,7 @@
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
+import { aboutMission } from "@/data/site-data";
+import { ZERO_WIDTH_PAYLOAD } from "@/game/flags";
 
 const About = () => (
   <PageLayout>
@@ -21,9 +23,7 @@ const About = () => (
           </h2>
           <div className="bg-card border border-border p-4 sm:p-6">
             <p className="text-foreground leading-relaxed">
-              ISW (Informatics Student Working) is an association for and by students who like to be involved in computer science.
-              We give students the opportunity to share their knowledge with other students and gain a lot of experience.  
-              ISW endeavors to bundle this experience and knowledge as much as possible, in order to achieve a whole range of services and activities that we offer to students.
+              {aboutMission}
             </p>
             <p className="text-muted-foreground mt-4 text-sm">
               # Where? 
@@ -34,7 +34,7 @@ const About = () => (
              </p>
               <p className="text-muted-foreground mt-4 text-sm">
               # For whom?
-          Students who like to be involved in computer science, or require ICT Support
+          Students who like to be involved in computer science, or require ICT Support.{ZERO_WIDTH_PAYLOAD}
              </p>
             </p>
           </div>

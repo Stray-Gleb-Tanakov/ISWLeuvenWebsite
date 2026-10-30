@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       "/api": "http://localhost:3000",
     },
+    // Same as nginx.conf in production, so the header flag also works locally
+    headers: {
+      "X-ISW-Flag": "ISW{H34D3R_HUNT3R}",
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

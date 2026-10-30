@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { RowDataPacket } from "mysql2";
 import { db, migrate } from "./db";
+import { scores } from "./scores";
 
 const app = new Hono().basePath("/api");
 
@@ -37,6 +38,8 @@ app.get("/food", async (c) => {
     })),
   );
 });
+
+app.route("/scores", scores);
 
 await migrate();
 const port = Number(process.env.PORT ?? 3000);

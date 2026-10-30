@@ -138,6 +138,23 @@ export const commands: Command[] = [
 ];
 
 // ============================================
+// PAGE TEXTS
+// Also used as book-cipher sources by the game (src/game/book.ts).
+// Editing these changes the in-game puzzles automatically, but the
+// pre-computed 404 cipher in src/game/flags.ts must be regenerated.
+// ============================================
+
+export const aboutMission =
+  "ISW (Informatics Student Working) is an association for and by students who like to be involved in computer science. " +
+  "We give students the opportunity to share their knowledge with other students and gain a lot of experience. " +
+  "ISW endeavors to bundle this experience and knowledge as much as possible, in order to achieve a whole range of services and activities that we offer to students.";
+
+export const memberIntro =
+  "A member of ISW is a student who is actively involved in the association. " +
+  "Members have access to all services and activities offered by ISW, and they can also contribute to the association by participating in projects, events, and committees or just use our services. " +
+  "Membership is open to all students who are interested in computer science and want to be part of our club.";
+
+// ============================================
 // EVENTS
 // ============================================
 

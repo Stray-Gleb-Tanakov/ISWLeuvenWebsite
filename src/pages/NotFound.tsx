@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { LOST_CIPHER } from "@/game/flags";
 
 const NotFound = () => {
   const location = useLocation();
@@ -13,6 +14,10 @@ const NotFound = () => {
       <div className="text-center">
         <h1 className="mb-4 text-4xl font-bold">404</h1>
         <p className="mb-4 text-xl text-muted-foreground">Oops! Page not found! We're probably still busy making this ;3 Teehee</p>
+        <p className="mb-4 font-mono text-xs text-muted-foreground/60 max-w-xl mx-auto break-words">
+          // lost? read our ./mission. recovery coordinates:<br />
+          {LOST_CIPHER}
+        </p>
         <a href="/" className="text-primary underline hover:text-primary/90">
           Return to Home
         </a>

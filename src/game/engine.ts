@@ -1,10 +1,58 @@
 /* =====================================================
    CYBERPUNK TERMINAL RPG — Game Engine (Reducer)
-   Mana, status effects, stealth, combos, puzzles
+   Mana, status effects, stealth, combos, puzzles,
+   quick-time events, boss lockdowns, merchants
    ==================================================== */
 
-import type { GameState, GameAction, Player, Enemy, StatusEffect, TrapTile } from "./types";
-import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine, TRAP_DATA } from "./data";
+import type { GameState, GameAction, Player, Enemy, StatusEffect, Qte, QteResult, QteKind, PuzzleType, FxKind } from "./types";
+import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine, TRAP_DATA, createPuzzle, makeLeech } from "./data";
+import { CLASS_QTE, COPYABLE_QTES, createQte, rmEgg, type QteMods } from "./qte";
+import { SHOP_STOCK, SHOPKEEPERS, shopPrice, creditDrop, terminalCredits, createHaggle, greetingLine, line } from "./merchant";
+import { PERKS, applyPerk, hasPerk, rollPerkChoices } from "./perks";
+import { taunt, type TauntKind } from "./iswchan";
+import { startTalk, talkReducer } from "./talk";
+
+/* ----- Difficulty knobs (combat only, puzzles are untouched) ----- */
+const ENEMY_DAMAGE_MULT = 0.8;   // enemies hit 20% softer
+const STATUS_CHANCE = 0.25;      // chance an enemy hit applies its status effect
+const STAIRS_RESTORE = 0.3;      // fraction of max HP/MP restored when descending
+const LEVEL_UP_HEAL = 0.5;       // fraction of max HP restored on level up
+
+/* ----- Final boss lockdown: a timed cipher at these HP fractions ----- */
+const LOCKDOWN_AT = [0.5, 0.2];
+const LOCKDOWN_MS = [30000, 25000];
+const LOCKDOWN_CIPHERS: PuzzleType[] = ["caesar", "reverse", "atbash", "keypad"];
+const LOCKDOWN_HEAL = 0.2;       // boss heals this fraction of max HP when the timer runs out
+
+/* ----- Brace: only some enemy attacks can be braced, so it stays a surprise ----- */
+const BRACE_CHANCE = 0.3;
+const PARANOIA_BRACE_CHANCE = 0.6;
+
+/* ----- Leech Bot ----- */
+const LEECH_FLEE_CHANCE = 0.4;
+const LEECH_BOUNTY = 15; // bonus credits for killing a leech, on top of what it stole
+
+/* Collected while one action is reduced, applied by gameReducer at the end:
+   screen effects for the UI and run statistics */
+const FX_PRIORITY: FxKind[] = ["hit", "crit", "perfect", "backfire", "nuke"];
+let pendingFx: FxKind | null = null;
+let tally = { dealt: 0, taken: 0, stolen: 0, spent: 0, braces: 0, perfectBraces: 0 };
+
+function emit(kind: FxKind) {
+  if (!pendingFx || FX_PRIORITY.indexOf(kind) > FX_PRIORITY.indexOf(pendingFx)) pendingFx = kind;
+}
+
+/* ISW-Chan butts into the log, sometimes */
+function chan(log: string[], kind: TauntKind, p: Player | null | undefined) {
+  const t = taunt(kind, p?.className);
+  if (t) log.push(t);
+}
+
+function qteMods(p: Player): QteMods {
+  return { windowMult: hasPerk(p, "steady_hands") ? 1.25 : 1 };
+}
+
+const LOG_LIMIT = 60;
 
 /* ----- Dice rolling ----- */
 function rollD20(): number {
@@ -53,38 +101,54 @@ function tickStatusEffects(effects: StatusEffect[]): { effects: StatusEffect[]; 
   return { effects: remaining, damage, stunned, msgs };
 }
 
-function applyStatusDamage(entity: { stats: { hp: number } }, damage: number) {
-  entity.stats.hp -= damage;
-}
-
 function hasStatus(effects: StatusEffect[], type: string): boolean {
   return effects.some(e => e.type === type);
 }
 
+/* Every floor gets a Leech Bot, and from floor 2 on one enemy is possessed by ISW-Chan */
+function decorateFloor(enemies: Enemy[], floor: number): Enemy[] {
+  const regular = enemies.filter((e) => !e.isBoss);
+  if (regular.length < 2) return enemies;
+  const leechIdx = Math.floor(Math.random() * regular.length);
+  const leech = regular[leechIdx];
+  let fragmentId: string | null = null;
+  if (floor >= 1) {
+    const others = regular.filter((_, i) => i !== leechIdx);
+    fragmentId = others[Math.floor(Math.random() * others.length)].id;
+  }
+  return enemies.map((e) => {
+    if (e.id === leech.id) return makeLeech(floor, e.x, e.y, e.id);
+    if (e.id === fragmentId) {
+      const boost = (n: number) => Math.round(n * 1.4);
+      return {
+        ...e, fragment: true, name: `ISW-Chan // ${e.name}`, xpReward: boost(e.xpReward),
+        stats: { ...e.stats, maxHp: boost(e.stats.maxHp), hp: boost(e.stats.maxHp), atk: boost(e.stats.atk) },
+      };
+    }
+    return e;
+  });
+}
+
 /* ----- Helper: create initial state ----- */
 export function createInitialState(): GameState {
-  const { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps } = parseFloor(0);
-  const allMaps = [cleanMap];
-  const allTraps: TrapTile[] = [...traps];
-
-  for (let f = 1; f < FLOOR_MAPS.length; f++) {
-    const parsed = parseFloor(f);
-    allMaps.push(parsed.cleanMap);
-  }
+  const seed = Math.floor(Math.random() * 0xffffffff);
+  const { enemies, npcs, groundItems, doors, puzzles, traps, merchants, uplinks } = parseFloor(0, seed);
+  // Walls never move, so the unshuffled maps are the same for every seed
+  const allMaps = FLOOR_MAPS.map((_, f) => parseFloor(f).cleanMap);
 
   return {
     mode: "CLASS_SELECT",
     player: null,
-    enemies,
+    enemies: decorateFloor(enemies, 0),
     npcs,
     groundItems,
     maps: allMaps,
     log: [
       "╔══════════════════════════════════════╗",
-      "║   MAINFRAME BREACH — v4.0.0         ║",
+      "║   MAINFRAME BREACH — v5.0.0         ║",
       "║   A Cyberpunk Terminal RPG           ║",
       "║   6 Floors · Mini-Bosses · Traps    ║",
-      "║   Vigenère Ciphers · D&D Dice       ║",
+      "║   Quick-Time Combat · Merchants     ║",
       "╚══════════════════════════════════════╝",
       "",
       "You wake up inside a corrupted mainframe.",
@@ -98,18 +162,34 @@ export function createInitialState(): GameState {
     dialogueChoices: null,
     doors,
     turnCount: 0,
-    spawnTimer: 8 + Math.floor(Math.random() * 5),
+    spawnTimer: 12 + Math.floor(Math.random() * 7),
     puzzles,
     currentPuzzle: null,
     puzzleInput: "",
-    traps: allTraps,
+    traps: [...traps],
+    qte: null,
+    lockdownMs: 0,
+    merchants,
+    uplinks,
+    currentMerchant: null,
+    haggle: null,
+    shopLine: "",
+    seed,
+    flagsFound: 0,
+    runStats: {
+      perfects: 0, lockdownsCracked: 0, creditsEarned: 0, creditsStolen: 0, creditsSpent: 0,
+      bracesFaced: 0, perfectBraces: 0, damageDealt: 0, damageTaken: 0, killedBy: null,
+    },
+    perkChoices: null,
+    fx: null,
+    talk: null,
   };
 }
 
 /* ----- Helper: add log messages ----- */
 function addLog(state: GameState, ...msgs: string[]): string[] {
   const newLog = [...state.log, ...msgs];
-  return newLog.slice(-60);
+  return newLog.slice(-LOG_LIMIT);
 }
 
 /* ----- Helper: check level up ----- */
@@ -120,20 +200,23 @@ function checkLevelUp(player: Player, log: string[]): { player: Player; log: str
   while (p.xp >= p.xpToNext) {
     p.xp -= p.xpToNext;
     p.level++;
-    p.xpToNext = Math.floor(p.xpToNext * 1.6);
+    p.xpToNext = Math.floor(p.xpToNext * 1.5);
+    const maxHp = p.stats.maxHp + 12;
+    const maxMp = p.stats.maxMp + 8;
     p.stats = {
       ...p.stats,
-      maxHp: p.stats.maxHp + 8,
-      hp: Math.min(p.stats.hp + 8, p.stats.maxHp + 8),
-      maxMp: p.stats.maxMp + 5,
-      mp: Math.min(p.stats.mp + 5, p.stats.maxMp + 5),
+      maxHp,
+      hp: Math.min(maxHp, p.stats.hp + 12 + Math.floor(maxHp * LEVEL_UP_HEAL)),
+      maxMp,
+      mp: Math.min(maxMp, p.stats.mp + 8 + Math.floor(maxMp * LEVEL_UP_HEAL)),
       atk: p.stats.atk + 2,
       def: p.stats.def + 1,
       spd: p.stats.spd + 1,
       int: p.stats.int + 1,
     };
+    p.pendingPerks += 1;
     newLog.push(`>>> LEVEL UP! You are now level ${p.level} <<<`);
-    newLog.push(`HP & MP partially restored. Stats increased.`);
+    newLog.push(`HP & MP restored by half. Stats increased.`);
   }
 
   return { player: p, log: newLog };
@@ -147,7 +230,7 @@ function playerAttackRoll(player: Player, enemy: Enemy): { hit: boolean; roll: n
   const roll = rollD20();
   const mod = getHitMod(player.stats.atk);
   const total = roll + mod;
-  const crit = roll === 20;
+  const crit = roll === 20 || (roll === 19 && hasPerk(player, "lucky_dice"));
   const msgs: string[] = [];
 
   msgs.push(`🎲 Roll: d20(${roll}) + ${mod} = ${total} vs AC ${enemy.ac}`);
@@ -176,7 +259,8 @@ function playerAttackRoll(player: Player, enemy: Enemy): { hit: boolean; roll: n
   return { hit: false, roll, total, damage: 0, crit: false, msgs };
 }
 
-function enemyAttackRoll(enemy: Enemy, player: Player): { player: Player; msgs: string[]; statusApplied?: string } {
+/* Enemy attack. `brace` is the Brace QTE result, or null when this attack had no Brace prompt */
+function enemyAttackRoll(enemy: Enemy, player: Player, brace: QteResult | null): { player: Player; msgs: string[] } {
   const roll = rollD20();
   const mod = getHitMod(enemy.stats.atk);
   const total = roll + mod;
@@ -192,17 +276,38 @@ function enemyAttackRoll(enemy: Enemy, player: Player): { player: Player; msgs: 
 
   const crit = roll === 20;
   if (crit || total >= playerAC) {
-    let damage = Math.max(1, enemy.stats.atk - Math.floor(player.stats.def / 3));
-    if (crit) {
-      damage = damage * 2;
-      msgs.push(`CRITICAL HIT! ${enemy.name} deals ${damage} damage!`);
-    } else {
-      msgs.push(`${enemy.name} hits for ${damage} damage.`);
+    if (brace === "perfect") {
+      msgs.push("🛡 PERFECT BRACE! You dodge it completely.");
+      return { player, msgs };
     }
-    const p = { ...player, stats: { ...player.stats, hp: player.stats.hp - damage } };
-    
-    // Apply on-hit status effect
-    if (enemy.onHitEffect && !hasStatus(p.statusEffects, enemy.onHitEffect) && Math.random() < 0.4) {
+    // Leech Bots go for your wallet, not your HP
+    if (enemy.behavior === "leech") {
+      const want = 10 + Math.floor(Math.random() * 16);
+      const stolen = Math.min(player.credits, brace === "good" ? Math.ceil(want / 2) : want);
+      enemy.stolen = (enemy.stolen ?? 0) + stolen;
+      tally.stolen += stolen;
+      msgs.push(stolen > 0 ? `🦠 ${enemy.name} siphons ${stolen} credits! (carrying ${enemy.stolen})` : `🦠 ${enemy.name} finds your wallet empty.`);
+      return { player: { ...player, credits: player.credits - stolen }, msgs };
+    }
+    let damage = Math.max(1, Math.floor((enemy.stats.atk - Math.floor(player.stats.def / 3)) * ENEMY_DAMAGE_MULT));
+    if (crit) damage = damage * 2;
+    if (brace === "good") damage = Math.ceil(damage / 2);
+    msgs.push(
+      `${crit ? "CRITICAL HIT! " : ""}${enemy.name} hits for ${damage} damage.${brace === "good" ? " 🛡 Braced, damage halved." : brace === "miss" ? " (no brace)" : ""}`,
+    );
+    const p = { ...player, stats: { ...player.stats } };
+    if (p.drone) {
+      const soaked = Math.min(p.drone.hp, damage);
+      damage -= soaked;
+      p.drone = p.drone.hp - soaked > 0 ? { ...p.drone, hp: p.drone.hp - soaked } : null;
+      msgs.push(p.drone ? `🤖 Your drone soaks ${soaked} damage. [${p.drone.hp}/${p.drone.maxHp}]` : `🤖 Your drone soaks ${soaked} damage and is destroyed!`);
+    }
+    p.stats.hp -= damage;
+    tally.taken += damage;
+    if (damage > 0) emit("hit");
+
+    // Status effects only stick when you didn't brace
+    if (brace !== "good" && enemy.onHitEffect && !hasStatus(p.statusEffects, enemy.onHitEffect) && Math.random() < STATUS_CHANCE) {
       const eff: StatusEffect = {
         type: enemy.onHitEffect,
         turnsLeft: enemy.onHitEffect === "stun" ? 1 : 3,
@@ -212,7 +317,7 @@ function enemyAttackRoll(enemy: Enemy, player: Player): { player: Player; msgs: 
       const icons: Record<string, string> = { poison: "☠", burn: "🔥", stun: "💫", slow: "🐌", bleed: "🩸" };
       msgs.push(`${icons[enemy.onHitEffect]} ${enemy.onHitEffect.toUpperCase()} applied!`);
     }
-    
+
     return { player: p, msgs };
   }
 
@@ -239,6 +344,8 @@ function isTileFree(state: GameState, x: number, y: number, floor: number): bool
   if (state.player && state.player.x === x && state.player.y === y && state.player.floor === floor) return false;
   if (state.enemies.some(e => e.x === x && e.y === y && e.floor === floor && e.alive)) return false;
   if (state.npcs.some(n => n.x === x && n.y === y && n.floor === floor)) return false;
+  if (state.merchants.some(m => m.x === x && m.y === y && m.floor === floor)) return false;
+  if (state.uplinks.some(u => u.x === x && u.y === y && u.floor === floor)) return false;
   return true;
 }
 
@@ -282,9 +389,10 @@ function moveEnemies(state: GameState): GameState {
       "",
       backstab ? `═══ BACKSTAB AMBUSH! ═══` : `═══ AMBUSH! ═══`,
       `${combatEnemy.isBoss ? "⚠ BOSS: " : ""}${combatEnemy.name} [HP:${combatEnemy.stats.hp}/${combatEnemy.stats.maxHp} AC:${combatEnemy.ac}]`,
-      "[A]ttack  [Q] Special  [F]lee  [1-9] Use item",
+      "[A]ttack  [Q] Special  [F]lee  [4-9] Use item",
       "",
     ];
+    chan(logMsgs, combatEnemy.fragment ? "fragment" : "fight", p);
 
     if (backstab) {
       // Free backstab damage
@@ -322,7 +430,7 @@ function trySpawnEnemy(state: GameState): GameState {
       return {
         ...state,
         enemies: [...state.enemies, newEnemy],
-        spawnTimer: 10 + Math.floor(Math.random() * 8),
+        spawnTimer: 14 + Math.floor(Math.random() * 10),
         log: addLog(state, ">> Warning: new hostile process detected <<"),
       };
     }
@@ -341,8 +449,325 @@ function tickCooldowns(player: Player): Player {
   };
 }
 
-/* ----- Main reducer ----- */
+/* =====================================================
+   Combat round flow (shared by every combat action):
+   startRound → player action → finishPlayerTurn
+     → enemy dead?  killEnemy
+     → final boss at 50% / 20%?  LOCKDOWN
+     → enemy stunned?  back to COMBAT
+     → otherwise  Brace QTE → QTE_RESOLVE → enemy attack
+   ==================================================== */
+
+interface Round {
+  p: Player;
+  enemy: Enemy;
+  log: string[];
+}
+
+function copyRound(state: GameState): Round {
+  const sp = state.player!;
+  const se = state.currentEnemy!;
+  return {
+    p: { ...sp, stats: { ...sp.stats }, statusEffects: [...sp.statusEffects], skills: sp.skills.map(s => ({ ...s })), inventory: [...sp.inventory] },
+    enemy: { ...se, stats: { ...se.stats }, statusEffects: [...(se.statusEffects || [])] },
+    log: [...state.log],
+  };
+}
+
+function die(state: GameState, p: Player, log: string[], killedBy?: string): GameState {
+  const out = [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<"];
+  chan(out, "death", p);
+  return {
+    ...state, mode: "GAME_OVER", player: p, currentEnemy: null, qte: null,
+    runStats: { ...state.runStats, killedBy: killedBy ?? state.currentEnemy?.name ?? "a trap" },
+    log: [...out, "Press [R] to restart."].slice(-LOG_LIMIT),
+  };
+}
+
+/* Start of the player's combat turn: their status effects and cooldowns tick */
+function startRound(state: GameState): (Round & { stunned: boolean }) | { over: GameState } {
+  const round = copyRound(state);
+  const tick = tickStatusEffects(round.p.statusEffects);
+  round.p.statusEffects = tick.effects;
+  round.p.stats.hp -= tick.damage;
+  round.log.push(...tick.msgs);
+  if (round.p.stats.hp <= 0) return { over: die(state, round.p, round.log) };
+  round.p = tickCooldowns(round.p);
+  if (tick.stunned) round.log.push("You're stunned and can't act!");
+  return { ...round, stunned: tick.stunned };
+}
+
+/* All player damage goes through here: Glass Cannon, exposed (double), Vampiric Code */
+function damageEnemy(enemy: Enemy, damage: number, log: string[], p?: Player): number {
+  const boosted = hasPerk(p, "glass_cannon") ? Math.floor(damage * 1.5) : damage;
+  const dealt = hasStatus(enemy.statusEffects, "exposed") ? boosted * 2 : boosted;
+  if (dealt !== boosted) log.push(`🎯 EXPOSED! Double damage: ${dealt}`);
+  enemy.stats.hp -= dealt;
+  tally.dealt += dealt;
+  if (p && hasPerk(p, "vampiric")) {
+    const heal = Math.min(p.stats.maxHp - p.stats.hp, Math.floor(dealt * 0.1));
+    if (heal > 0) { p.stats.hp += heal; log.push(`🩸 Vampiric Code drains ${heal} HP`); }
+  }
+  return dealt;
+}
+
+function isFinalBoss(enemy: Enemy): boolean {
+  return enemy.id.startsWith("boss-");
+}
+
+function killEnemy(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
+  enemy.alive = false;
+  p.xp += enemy.xpReward;
+  log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
+  const drop = creditDrop(!!enemy.isBoss, isFinalBoss(enemy));
+  const credits = hasPerk(p, "credit_miner") ? Math.floor(drop * 1.5) : drop;
+  if (credits > 0) {
+    p.credits += credits;
+    log.push(`💰 +${credits} credits (${p.credits} total)`);
+  }
+  if (enemy.behavior === "leech" && (enemy.stolen ?? 0) > 0) {
+    p.credits += enemy.stolen! + LEECH_BOUNTY;
+    log.push(`💰 Recovered ${enemy.stolen} stolen credits + ${LEECH_BOUNTY} bounty!`);
+  }
+  chan(log, "kill", p);
+  if (enemy.loot) { p.inventory = [...p.inventory, enemy.loot]; log.push(`Loot: ${enemy.loot.name}`); }
+  p.comboCount = 0;
+
+  const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
+  const enemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
+  const runStats = { ...state.runStats, creditsEarned: state.runStats.creditsEarned + credits };
+  const base = { ...state, player: lvlP, enemies, currentEnemy: null, qte: null, runStats };
+
+  if (isFinalBoss(enemy)) {
+    return {
+      ...base, mode: "WIN",
+      log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"].slice(-LOG_LIMIT),
+    };
+  }
+  if (enemy.isBoss) {
+    lvlLog.push(`>>> MINI-BOSS ${enemy.name} DEFEATED! <<<`);
+    if (enemy.loot) lvlLog.push(`Legendary loot: ${enemy.loot.name}!`);
+  }
+  return { ...base, mode: "EXPLORE", log: lvlLog.slice(-LOG_LIMIT) };
+}
+
+function startLockdown(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
+  const phase = enemy.lockdownPhase!; // already incremented
+  const type = LOCKDOWN_CIPHERS[Math.floor(Math.random() * LOCKDOWN_CIPHERS.length)];
+  const puzzle = createPuzzle(0, -1, -1, `lockdown-${phase}`, type);
+  const seconds = LOCKDOWN_MS[phase - 1] / 1000;
+  return {
+    ...state, mode: "LOCKDOWN", player: p, currentEnemy: enemy, qte: null,
+    currentPuzzle: puzzle, puzzleInput: "", lockdownMs: LOCKDOWN_MS[phase - 1],
+    log: [
+      ...log, "",
+      `⚠⚠ ${enemy.name} INITIATES LOCKDOWN ${phase}/${LOCKDOWN_AT.length} ⚠⚠`,
+      `Crack the cipher within ${seconds}s or it repairs itself.`,
+      puzzle.hint, "",
+    ].slice(-LOG_LIMIT),
+  };
+}
+
+/* End of the player's turn: enemy DoTs, death, lockdown, stun, otherwise the enemy attacks (sometimes with a Brace prompt) */
+function finishPlayerTurn(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
+  if (p.drone && enemy.stats.hp > 0) {
+    const zap = damageEnemy(enemy, Math.floor(p.stats.int * 0.5) + 1, [], p);
+    log.push(`🤖 Drone zaps ${enemy.name} for ${zap}`);
+  }
+  const tick = tickStatusEffects(enemy.statusEffects);
+  enemy.statusEffects = tick.effects;
+  enemy.stats.hp -= tick.damage;
+  log.push(...tick.msgs.map((m) => `[${enemy.name}] ${m}`));
+
+  if (enemy.stats.hp <= 0) return killEnemy(state, p, enemy, log);
+
+  const phase = enemy.lockdownPhase ?? 0;
+  if (isFinalBoss(enemy) && phase < LOCKDOWN_AT.length && enemy.stats.hp <= enemy.stats.maxHp * LOCKDOWN_AT[phase]) {
+    enemy.lockdownPhase = phase + 1;
+    return startLockdown(state, p, enemy, log);
+  }
+
+  if (tick.stunned) {
+    return { ...state, mode: "COMBAT", qte: null, player: p, currentEnemy: enemy, log: log.slice(-LOG_LIMIT) };
+  }
+
+  // A Leech Bot with your credits tries to run: catch it with the Grab QTE
+  if (enemy.behavior === "leech" && (enemy.stolen ?? 0) > 0 && !enemy.grabbed && Math.random() < LEECH_FLEE_CHANCE) {
+    return {
+      ...state, mode: "QTE", qte: createQte("grab", p.floor, Math.random, qteMods(p)), player: p, currentEnemy: enemy,
+      log: [...log, `🦠 ${enemy.name} bolts for the exit with ${enemy.stolen} of your credits! GRAB IT: mash [SPACE]!`].slice(-LOG_LIMIT),
+    };
+  }
+
+  const paranoid = hasPerk(p, "paranoia");
+  if (Math.random() < (paranoid ? PARANOIA_BRACE_CHANCE : BRACE_CHANCE)) {
+    tally.braces += 1;
+    const mods = qteMods(p);
+    const qte = createQte("brace", p.floor, Math.random, paranoid ? { windowMult: (mods.windowMult ?? 1) * 0.6, perfectFrac: 0.12 } : mods);
+    return {
+      ...state, mode: "QTE", qte, player: p, currentEnemy: enemy,
+      log: [...log, `⚠ ${enemy.name} winds up a heavy attack... BRACE! [SPACE]`].slice(-LOG_LIMIT),
+    };
+  }
+
+  const { player: hitP, msgs } = enemyAttackRoll(enemy, p, null);
+  log.push(...msgs);
+  if (hitP.stats.hp <= 0) return die(state, hitP, log);
+  return { ...state, mode: "COMBAT", qte: null, player: hitP, currentEnemy: enemy, log: log.slice(-LOG_LIMIT) };
+}
+
+const QTE_INSTRUCTIONS: Record<string, string> = {
+  hack: "Type the code before the ICE closes!",
+  gauge: "Hit [SPACE] when the needle is in the green!",
+  combo: "Memorise the arrows, then repeat them!",
+  shell: "Something broke. Type the command that fixes it!",
+};
+
+/* Class special, scaled by how well the QTE went. Keyed by QTE kind so the
+   Script Kiddie can borrow any of them. */
+function applySpecial(p: Player, enemy: Enemy, log: string[], qte: Qte, result: QteResult, accuracy: number) {
+  const tag = result === "perfect" ? " ★PERFECT★" : result === "miss" ? " (fumbled)" : "";
+  if (p.className === "Script Kiddie") log.push(">> COPY-PASTE EXPLOIT: borrowing someone else's moves...");
+  switch (qte.kind) {
+    case "hack": {
+      const matched = Math.round(accuracy * qte.prompt.length);
+      const dmg = Math.round(p.stats.int * 2 * (0.5 + accuracy)) + (result === "perfect" ? rollDice(8, 2) : 0);
+      const dealt = damageEnemy(enemy, Math.max(1, dmg), log, p);
+      log.push(`>> ICE Breaker — ${matched}/${qte.prompt.length} hacked${tag} — ${dealt} pure damage <<`);
+      break;
+    }
+    case "gauge": {
+      // A missed gauge backfires: no damage to the enemy, the whole surge goes into you
+      if (result === "miss") {
+        const backfire = Math.floor(p.stats.atk * 1.5);
+        p.stats.hp = Math.max(1, p.stats.hp - backfire);
+        tally.taken += backfire;
+        emit("backfire");
+        log.push(`>> OVERCLOCK BACKFIRE! The surge hits you for ${backfire} damage <<`);
+        break;
+      }
+      const mult = result === "perfect" ? 3.5 : 3;
+      const recoil = result === "perfect" ? 0 : Math.floor(p.stats.atk * 0.6);
+      const dealt = damageEnemy(enemy, Math.max(1, Math.floor(p.stats.atk * mult) - Math.floor(enemy.stats.def / 3)), log, p);
+      p.stats.hp = Math.max(1, p.stats.hp - recoil);
+      log.push(`>> OVERCLOCK x${mult}${tag} — ${dealt} damage, ${recoil} recoil <<`);
+      break;
+    }
+    case "combo": {
+      const hits = Math.round(accuracy * qte.prompt.length);
+      const dealt = damageEnemy(enemy, Math.floor(p.stats.atk * 1.2) + hits * Math.floor(p.stats.atk * 0.3), log, p);
+      log.push(`>> SHADOW COMBO ${hits}/${qte.prompt.length}${tag} — ${dealt} damage <<`);
+      if (result === "perfect" && !hasStatus(enemy.statusEffects, "bleed")) {
+        enemy.statusEffects = [...enemy.statusEffects, { type: "bleed", turnsLeft: 3, damage: 6 }];
+        log.push("🩸 Full combo! Enemy is bleeding.");
+      }
+      break;
+    }
+    case "shell": {
+      if (result === "miss") {
+        log.push(`>> Segmentation fault (core dumped). Nothing fixed.`);
+        break;
+      }
+      const maxHp = 20 + p.level * 6;
+      if (!p.drone) {
+        p.drone = { hp: maxHp, maxHp };
+        log.push(`>> Fixed${tag}! 🤖 Drone deployed [${maxHp} HP]. It soaks hits and zaps enemies.`);
+      } else {
+        p.drone = { hp: maxHp, maxHp };
+        const dealt = damageEnemy(enemy, Math.floor(p.stats.int * (result === "perfect" ? 3 : 2)), log, p);
+        log.push(`>> Fixed${tag}! 🤖 Drone repaired and fires a full volley: ${dealt} damage.`);
+      }
+      break;
+    }
+  }
+  p.comboCount += 1;
+}
+
+/* sudo rm -rf /* — deletes the enemy (or half the final boss), the drone and nearly you */
+function nuke(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
+  emit("nuke");
+  log.push(
+    ">> removing /bin... /boot... /etc... /home/isw-chan... /usr... /var...",
+    ">> rm: cannot remove '/proc/1': Operation not permitted",
+    ">> SYSTEM UNSTABLE",
+  );
+  chan(log, "nuke", p);
+  p.drone = null;
+  p.stats.hp = 1;
+  if (isFinalBoss(enemy)) {
+    damageEnemy(enemy, Math.floor(enemy.stats.maxHp * 0.5), log, p);
+    log.push(`${enemy.name} survives with half its filesystem gone.`);
+  } else {
+    enemy.stats.hp = 0;
+    log.push(`${enemy.name} was deleted.`);
+  }
+  return finishPlayerTurn(state, p, enemy, log);
+}
+
+/* ----- Merchant helpers ----- */
+function merchantName(floor: number): string {
+  return SHOPKEEPERS[floor % SHOPKEEPERS.length].name;
+}
+
+function withMerchant(state: GameState, update: (m: GameState["merchants"][number]) => GameState["merchants"][number]): GameState["merchants"] {
+  return state.merchants.map((m) => (m.id === state.currentMerchant ? update(m) : m));
+}
+
+/* A Leech Bot that got away: it hides elsewhere on the floor, carrying your credits */
+function leechEscapes(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
+  const map = state.maps[p.floor];
+  let spot = { x: enemy.x, y: enemy.y };
+  for (let i = 0; i < 60; i++) {
+    const y = Math.floor(Math.random() * map.length);
+    const x = Math.floor(Math.random() * map[y].length);
+    if (Math.abs(x - p.x) + Math.abs(y - p.y) >= 8 && isTileFree(state, x, y, p.floor)) { spot = { x, y }; break; }
+  }
+  const fled = { ...enemy, ...spot, name: `Leech Bot [${enemy.stolen} cr]` };
+  log.push(`🦠 ${enemy.name} escapes with ${enemy.stolen} credits! It's hiding somewhere on this floor.`);
+  chan(log, "leech", p);
+  return {
+    ...state, mode: "EXPLORE", player: p, currentEnemy: null,
+    enemies: state.enemies.map((e) => (e.id === enemy.id ? fled : e)),
+    log: [...log, ""].slice(-LOG_LIMIT),
+  };
+}
+
+/* ----- Main reducer: the step itself, plus the bookkeeping every step shares ----- */
 export function gameReducer(state: GameState, action: GameAction): GameState {
+  pendingFx = null;
+  tally = { dealt: 0, taken: 0, stolen: 0, spent: 0, braces: 0, perfectBraces: 0 };
+  let next = reduce(state, action);
+  if (next === state) return state;
+
+  // Level-ups wait for a calm moment to offer their perk
+  if (next.mode === "EXPLORE" && next.player && next.player.pendingPerks > 0 && !next.perkChoices) {
+    const choices = rollPerkChoices(next.player);
+    if (choices.length > 0) {
+      next = { ...next, mode: "PERK", perkChoices: choices, log: addLog(next, "", "═══ LEVEL UP: CHOOSE A PERK ═══") };
+    } else {
+      next = { ...next, player: { ...next.player, pendingPerks: 0 } };
+    }
+  }
+  // Social Engineer runs live in the talk view between fights, shops and terminals
+  if (next.talk && next.mode === "EXPLORE") next = { ...next, mode: "TALK" };
+
+  if (pendingFx) next = { ...next, fx: { kind: pendingFx, id: (state.fx?.id ?? 0) + 1 } };
+  if (Object.values(tally).some((v) => v > 0)) {
+    const r = next.runStats;
+    next = {
+      ...next,
+      runStats: {
+        ...r,
+        damageDealt: r.damageDealt + tally.dealt, damageTaken: r.damageTaken + tally.taken,
+        creditsStolen: r.creditsStolen + tally.stolen, creditsSpent: r.creditsSpent + tally.spent,
+        bracesFaced: r.bracesFaced + tally.braces, perfectBraces: r.perfectBraces + tally.perfectBraces,
+      },
+    };
+  }
+  return next;
+}
+
+function reduce(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     /* === CLASS SELECTION === */
     case "SELECT_CLASS": {
@@ -353,8 +778,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         stats: { ...cls.stats },
         level: 1,
         xp: 0,
-        xpToNext: 35,
-        inventory: [],
+        xpToNext: 30,
+        inventory: [
+          { id: "start-heal-1", name: "NanoMed Kit", description: "Restores 20 HP", type: "heal", value: 20 },
+          { id: "start-heal-2", name: "NanoMed Kit", description: "Restores 20 HP", type: "heal", value: 20 },
+        ],
         x: playerStart.x,
         y: playerStart.y,
         floor: 0,
@@ -364,11 +792,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         stealth: 0,
         stealthMode: false,
         comboCount: 0,
+        credits: 0,
+        perks: [],
+        pendingPerks: 0,
+        drone: null,
       };
+      if (action.className === "Social Engineer") {
+        return startTalk({ ...state, player, flagsFound: action.flagsFound ?? 0 });
+      }
       return {
         ...state,
         mode: "EXPLORE",
         player,
+        flagsFound: action.flagsFound ?? 0,
         log: addLog(
           state,
           "",
@@ -378,9 +814,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           `MP: ${cls.stats.maxMp} | Skills: ${cls.skills.map(s => s.name).join(", ")}`,
           "",
           `--- ${FLOOR_NAMES[0]} ---`,
-          "WASD/arrows: Move | I: Inventory | S: Stealth",
-          "Combat: A:Attack Q:Special 1-3:Skills F:Flee",
-          "Walk into T (terminals) to solve cipher puzzles.",
+          "WASD/arrows: Move | I: Inventory | X: Stealth",
+          "Combat: A:Attack Q/1:Special 2-3:Skills F:Flee",
+          "Heavy enemy attacks can be braced: hit [SPACE] on the cue.",
+          "Walk into T (terminals) to solve cipher puzzles, $ to shop.",
+          "Found a flag on the ISW website? Upload it at a U (uplink).",
           ""
         ),
       };
@@ -414,6 +852,34 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           puzzleInput: "",
           player: stealthUpdate,
           log: addLog(state, "", "═══ TERMINAL HACK ═══", `Type: ${puzzle.type.toUpperCase()} cipher`, puzzle.hint, "", "Type the decrypted answer. [ESC] to quit."),
+        };
+      }
+
+      // Check for merchant
+      const merchant = state.merchants.find(m => m.x === nx && m.y === ny && m.floor === p.floor);
+      if (merchant) {
+        const greeting = greetingLine(merchant, p, state.flagsFound);
+        return {
+          ...state,
+          mode: "SHOP",
+          player: stealthUpdate,
+          currentMerchant: merchant.id,
+          merchants: state.merchants.map(m => m.id === merchant.id ? { ...m, visits: m.visits + 1 } : m),
+          haggle: null,
+          puzzleInput: "",
+          shopLine: greeting,
+          log: addLog(state, "", `═══ SHOP: ${merchantName(merchant.floor)} ═══`, `"${greeting}"`),
+        };
+      }
+
+      // Check for flag uplink
+      if (state.uplinks.some(u => u.x === nx && u.y === ny && u.floor === p.floor)) {
+        return {
+          ...state,
+          mode: "UPLINK",
+          player: stealthUpdate,
+          puzzleInput: "",
+          log: addLog(state, "", "═══ ISW UPLINK ═══", "Flags hidden on the ISW website can be uploaded here.", "Each accepted flag adds 2500 to the score you submit.", "Type the flag · ENTER to upload · ESC to disconnect", ""),
         };
       }
 
@@ -453,7 +919,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           "",
           backstab ? `═══ BACKSTAB! ═══` : `═══ COMBAT ═══`,
           `${enemy.isBoss ? "⚠ BOSS: " : ""}${enemy.name} [HP:${enemy.stats.hp}/${enemy.stats.maxHp} AC:${enemy.ac}]`,
-          "[A]ttack  [Q] Special  [F]lee  [1-9] Use item",
+          "[A]ttack  [Q] Special  [F]lee  [4-9] Use item",
           "",
         ];
 
@@ -462,6 +928,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           combatEnemy.stats.hp -= bsDmg;
           logMsgs.splice(2, 0, `🗡 Backstab strike! ${bsDmg} sneak damage!`);
         }
+        chan(logMsgs, enemy.fragment ? "fragment" : "fight", p);
 
         return {
           ...state,
@@ -539,7 +1006,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           movedPlayer.statusEffects = [...movedPlayer.statusEffects, eff];
         }
         if (movedPlayer.stats.hp <= 0) {
-          return { ...state, mode: "GAME_OVER", player: movedPlayer, traps: newTraps, log: addLog({ ...state, log: newLog }, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart.") };
+          return die({ ...state, traps: newTraps }, movedPlayer, newLog, "a trap");
         }
       }
 
@@ -550,23 +1017,31 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (nextFloor >= FLOOR_MAPS.length) {
           return { ...state, mode: "WIN", log: addLog(state, "You escaped the mainframe!") };
         }
-        const parsed = parseFloor(nextFloor);
+        const parsed = parseFloor(nextFloor, state.seed);
+        const restored = {
+          ...movedPlayer.stats,
+          hp: Math.min(movedPlayer.stats.maxHp, movedPlayer.stats.hp + Math.floor(movedPlayer.stats.maxHp * STAIRS_RESTORE)),
+          mp: Math.min(movedPlayer.stats.maxMp, movedPlayer.stats.mp + Math.floor(movedPlayer.stats.maxMp * STAIRS_RESTORE)),
+        };
         return {
           ...state,
           player: {
             ...movedPlayer,
+            stats: restored,
             floor: nextFloor,
             x: parsed.playerStart.x,
             y: parsed.playerStart.y,
             hasKeycard: false,
           },
-          enemies: [...state.enemies, ...parsed.enemies],
+          enemies: [...state.enemies, ...decorateFloor(parsed.enemies, nextFloor)],
           npcs: [...state.npcs, ...parsed.npcs],
           groundItems: [...newGroundItems, ...parsed.groundItems],
           doors: [...state.doors, ...parsed.doors],
           puzzles: [...state.puzzles, ...parsed.puzzles],
           traps: [...newTraps, ...parsed.traps],
-          log: addLog({ ...state, log: newLog }, "", `>>> Descending to ${FLOOR_NAMES[nextFloor]} <<<`, ""),
+          merchants: [...state.merchants, ...parsed.merchants],
+          uplinks: [...state.uplinks, ...parsed.uplinks],
+          log: addLog({ ...state, log: newLog }, "", `>>> Descending to ${FLOOR_NAMES[nextFloor]} <<<`, ">> Checkpoint: 30% HP & MP restored <<", ...[taunt("floor", p.className)].filter((t): t is string => !!t), ""),
           turnCount: state.turnCount + 1,
         };
       }
@@ -592,169 +1067,126 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     /* === COMBAT: ATTACK === */
     case "ATTACK": {
       if (state.mode !== "COMBAT" || !state.player || !state.currentEnemy) return state;
-      let p = { ...state.player, stats: { ...state.player.stats }, statusEffects: [...state.player.statusEffects] };
-      let enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats }, statusEffects: [...(state.currentEnemy.statusEffects || [])] };
-      let log = [...state.log];
+      const round = startRound(state);
+      if ("over" in round) return round.over;
+      const { p, enemy, log } = round;
 
-      // Tick player status effects
-      const playerTick = tickStatusEffects(p.statusEffects);
-      p.statusEffects = playerTick.effects;
-      applyStatusDamage(p, playerTick.damage);
-      log.push(...playerTick.msgs);
-
-      if (p.stats.hp <= 0) {
-        return { ...state, mode: "GAME_OVER", player: p, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
-      }
-
-      if (playerTick.stunned) {
-        // Enemy still attacks
-        const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
-        log.push("You're stunned and can't attack!", ...msgs);
-        if (hitP.stats.hp <= 0) {
-          return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
+      if (!round.stunned) {
+        const atkResult = playerAttackRoll(p, enemy);
+        log.push(...atkResult.msgs);
+        if (atkResult.hit) {
+          if (atkResult.crit) emit("crit");
+          damageEnemy(enemy, atkResult.damage, log, p);
+          p.comboCount += 1;
+          log.push(`[Enemy HP: ${Math.max(0, enemy.stats.hp)}/${enemy.stats.maxHp}]`);
+        } else {
+          p.comboCount = 0; // combo broken
         }
-        return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-60) };
       }
-
-      const atkResult = playerAttackRoll(p, enemy);
-      log.push(...atkResult.msgs);
-
-      if (atkResult.hit) {
-        enemy.stats.hp -= atkResult.damage;
-        p.comboCount += 1;
-        log.push(`[Enemy HP: ${Math.max(0, enemy.stats.hp)}/${enemy.stats.maxHp}]`);
-      } else {
-        p.comboCount = 0; // combo broken
-      }
-
-      // Tick enemy status effects
-      const enemyTick = tickStatusEffects(enemy.statusEffects);
-      enemy.statusEffects = enemyTick.effects;
-      applyStatusDamage(enemy, enemyTick.damage);
-      log.push(...enemyTick.msgs);
-
-      if (enemy.stats.hp <= 0) {
-        enemy.alive = false;
-        p.xp += enemy.xpReward;
-        log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
-        if (enemy.loot) { p.inventory.push(enemy.loot); log.push(`Loot: ${enemy.loot.name}`); }
-        p.comboCount = 0;
-        p = tickCooldowns(p);
-        const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
-        const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-        if (enemy.isBoss && enemy.name.includes("NEXUS")) {
-          return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"] };
-        }
-        if (enemy.isBoss) {
-          lvlLog.push(`>>> MINI-BOSS ${enemy.name} DEFEATED! <<<`);
-          if (enemy.loot) lvlLog.push(`Legendary loot: ${enemy.loot.name}!`);
-        }
-        return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
-      }
-
-      const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
-      log.push(...msgs);
-      if (hitP.stats.hp <= 0) {
-        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<", "Press [R] to restart."] };
-      }
-      return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-60) };
+      return finishPlayerTurn(state, p, enemy, log);
     }
 
-    /* === COMBAT: SPECIAL (Q — skill 0, costs MP) === */
+    /* === COMBAT: SPECIAL (Q / 1 — skill 0, costs MP, class QTE) === */
     case "SPECIAL": {
       if (state.mode !== "COMBAT" || !state.player || !state.currentEnemy) return state;
-      let p = { ...state.player, stats: { ...state.player.stats }, statusEffects: [...state.player.statusEffects], skills: state.player.skills.map(s => ({ ...s })) };
-      let enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats }, statusEffects: [...(state.currentEnemy.statusEffects || [])] };
-      let log = [...state.log];
-
-      const skill = p.skills[0];
+      const skill = state.player.skills[0];
       if (!skill) return state;
-
       if (skill.currentCooldown > 0) {
         return { ...state, log: addLog(state, `${skill.name} on cooldown (${skill.currentCooldown} turns)`) };
       }
-      if (p.stats.mp < skill.mpCost) {
-        return { ...state, log: addLog(state, `Not enough MP! Need ${skill.mpCost}, have ${p.stats.mp}`) };
+      if (state.player.stats.mp < skill.mpCost) {
+        return { ...state, log: addLog(state, `Not enough MP! Need ${skill.mpCost}, have ${state.player.stats.mp}`) };
       }
+
+      const round = startRound(state);
+      if ("over" in round) return round.over;
+      const { p, enemy, log } = round;
+      if (round.stunned) return finishPlayerTurn(state, p, enemy, log);
 
       p.stats.mp -= skill.mpCost;
-      p.skills[0] = { ...skill, currentCooldown: skill.cooldown };
+      p.skills[0] = { ...p.skills[0], currentCooldown: skill.cooldown };
+      const classKind = CLASS_QTE[p.className];
+      const kind: QteKind = classKind === "random" ? COPYABLE_QTES[Math.floor(Math.random() * COPYABLE_QTES.length)] : classKind;
+      return {
+        ...state, mode: "QTE", qte: createQte(kind, p.floor, Math.random, qteMods(p)), player: p, currentEnemy: enemy,
+        log: [...log, `>> ${skill.name}! [-${skill.mpCost} MP] ${QTE_INSTRUCTIONS[kind]}`].slice(-LOG_LIMIT),
+      };
+    }
 
-      const bonusRoll = rollD20();
-      let specialDmg = 0;
-      switch (p.className) {
-        case "Netrunner":
-          specialDmg = p.stats.int * 2 + (bonusRoll >= 15 ? rollDice(8) : 0);
-          log.push(`>> ICE Breaker! d20(${bonusRoll}) — ${specialDmg} pure damage ${bonusRoll >= 15 ? "(bonus!)" : ""} [-${skill.mpCost} MP] <<`);
-          break;
-        case "Cyborg":
-          specialDmg = p.stats.atk * 3 - Math.floor(enemy.stats.def / 3) + (bonusRoll >= 15 ? rollDice(10) : 0);
-          const recoil = Math.floor(p.stats.atk * 0.6);
-          p.stats.hp -= recoil;
-          log.push(`>> OVERCLOCK! d20(${bonusRoll}) — ${specialDmg} damage, ${recoil} recoil [-${skill.mpCost} MP] <<`);
-          break;
-        case "Ghost":
-          specialDmg = Math.floor(p.stats.atk * 2.5) + (bonusRoll >= 15 ? rollDice(6, 2) : 0);
-          log.push(`>> BACKSTAB! d20(${bonusRoll}) — ${specialDmg} crit damage [-${skill.mpCost} MP] <<`);
-          break;
-      }
+    /* === QUICK-TIME EVENT RESULT === */
+    case "QTE_RESOLVE": {
+      if (state.mode !== "QTE" || !state.qte || !state.player || !state.currentEnemy) return state;
+      const qte = state.qte;
+      const perfect = action.result === "perfect";
+      const runStats = perfect ? { ...state.runStats, perfects: state.runStats.perfects + 1 } : state.runStats;
+      const next = { ...state, qte: null, runStats };
+      const { p, enemy, log } = copyRound(next);
+      if (perfect) { emit("perfect"); chan(log, "perfect", p); }
 
-      enemy.stats.hp -= Math.max(1, specialDmg);
-      p.comboCount += 1;
-
-      // Tick enemy DoTs
-      const enemyTick = tickStatusEffects(enemy.statusEffects);
-      enemy.statusEffects = enemyTick.effects;
-      applyStatusDamage(enemy, enemyTick.damage);
-      log.push(...enemyTick.msgs);
-
-      if (enemy.stats.hp <= 0) {
-        enemy.alive = false;
-        p.xp += enemy.xpReward;
-        log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
-        p.comboCount = 0;
-        const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
-        const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-        if (enemy.isBoss && enemy.name.includes("NEXUS")) {
-          return { ...state, mode: "WIN", player: lvlP, enemies: newEnemies, currentEnemy: null, log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "╚══════════════════════════════════════╝"] };
+      if (qte.context === "grab") {
+        if (action.result !== "miss") {
+          enemy.grabbed = true;
+          enemy.statusEffects = [...enemy.statusEffects, { type: "stun", turnsLeft: 1 }];
+          log.push(`🖐 GRABBED! ${enemy.name} is pinned and can't run anymore.`);
+          return { ...next, mode: "COMBAT", player: p, currentEnemy: enemy, log: log.slice(-LOG_LIMIT) };
         }
-        return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
+        return leechEscapes(next, p, enemy, log);
       }
 
-      const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
-      log.push(...msgs);
-      if (hitP.stats.hp <= 0) {
-        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<"] };
+      if (qte.context === "special") {
+        const egg = qte.kind === "shell" && action.text ? rmEgg(action.text) : null;
+        if (egg === "nuke") return nuke(next, p, enemy, log);
+        if (egg === "refused") {
+          log.push(">> rm: it is dangerous to operate recursively on '/'", ">> rm: use --no-preserve-root to override this failsafe");
+        } else {
+          applySpecial(p, enemy, log, qte, action.result, action.accuracy);
+        }
+        if (perfect && hasPerk(p, "overcharge")) {
+          p.stats.mp = Math.min(p.stats.maxMp, p.stats.mp + p.skills[0].mpCost);
+          log.push(`⚡ Overcharge: +${p.skills[0].mpCost} MP refunded`);
+        }
+        return finishPlayerTurn(next, p, enemy, log);
       }
-      return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-60) };
+
+      if (perfect) tally.perfectBraces += 1;
+      const { player: hitP, msgs } = enemyAttackRoll(enemy, p, action.result);
+      log.push(...msgs);
+      if (hitP.stats.hp <= 0) return die(next, hitP, log);
+      // Paranoia pays off: a perfect brace hits back
+      if (perfect && hasPerk(hitP, "paranoia")) {
+        const counter = damageEnemy(enemy, hitP.stats.atk, log, hitP);
+        log.push(`👁 Paranoia counter-attack! ${counter} damage.`);
+        if (enemy.stats.hp <= 0) return killEnemy(next, hitP, enemy, log);
+      }
+      return { ...next, mode: "COMBAT", player: hitP, currentEnemy: enemy, log: log.slice(-LOG_LIMIT) };
     }
 
     /* === COMBAT: SKILL (1-3 mapped to skills) === */
     case "SKILL": {
       if (state.mode !== "COMBAT" || !state.player || !state.currentEnemy) return state;
-      let p = { ...state.player, stats: { ...state.player.stats }, statusEffects: [...state.player.statusEffects], skills: state.player.skills.map(s => ({ ...s })) };
-      let enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats }, statusEffects: [...(state.currentEnemy.statusEffects || [])] };
-      let log = [...state.log];
-
       const skillIdx = action.skillIndex;
-      const skill = p.skills[skillIdx];
+      if (skillIdx === 0) return reduce(state, { type: "SPECIAL" });
+      const skill = state.player.skills[skillIdx];
       if (!skill) return state;
 
       if (skill.currentCooldown > 0) {
         return { ...state, log: addLog(state, `${skill.name} on cooldown (${skill.currentCooldown} turns)`) };
       }
-      if (p.stats.mp < skill.mpCost) {
-        return { ...state, log: addLog(state, `Not enough MP! Need ${skill.mpCost}, have ${p.stats.mp}`) };
+      if (state.player.stats.mp < skill.mpCost) {
+        return { ...state, log: addLog(state, `Not enough MP! Need ${skill.mpCost}, have ${state.player.stats.mp}`) };
       }
 
-      p.stats.mp -= skill.mpCost;
-      p.skills[skillIdx] = { ...skill, currentCooldown: skill.cooldown };
+      const round = startRound(state);
+      if ("over" in round) return round.over;
+      const { p, enemy, log } = round;
+      if (round.stunned) return finishPlayerTurn(state, p, enemy, log);
 
-      // Execute skill based on name
+      p.stats.mp -= skill.mpCost;
+      p.skills[skillIdx] = { ...p.skills[skillIdx], currentCooldown: skill.cooldown };
+
       switch (skill.name) {
         case "Virus Upload": {
-          const eff: StatusEffect = { type: "poison", turnsLeft: 3, damage: 5 };
-          enemy.statusEffects = [...enemy.statusEffects, eff];
+          enemy.statusEffects = [...enemy.statusEffects, { type: "poison", turnsLeft: 3, damage: 5 }];
           log.push(`>> Virus Upload! Enemy poisoned for 3 turns [-${skill.mpCost} MP] <<`);
           break;
         }
@@ -764,10 +1196,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
         case "Chrome Slam": {
-          const dmg = Math.floor(p.stats.atk * 1.5);
-          enemy.stats.hp -= dmg;
+          const dealt = damageEnemy(enemy, Math.floor(p.stats.atk * 1.5), log, p);
           enemy.statusEffects = [...enemy.statusEffects, { type: "stun", turnsLeft: 1 }];
-          log.push(`>> Chrome Slam! ${dmg} damage + STUN [-${skill.mpCost} MP] <<`);
+          log.push(`>> Chrome Slam! ${dealt} damage + STUN [-${skill.mpCost} MP] <<`);
           break;
         }
         case "Repair Nanites": {
@@ -777,45 +1208,62 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         }
         case "Smoke Bomb": {
-          log.push(`>> Smoke Bomb! Guaranteed escape [-${skill.mpCost} MP] <<`);
-          return { ...state, mode: "EXPLORE", player: { ...p, stealthMode: true, stealth: 80 }, currentEnemy: null, log: addLog({ ...state, log }, ...log.slice(-5), "You vanish into the smoke!") };
+          log.push(`>> Smoke Bomb! Guaranteed escape [-${skill.mpCost} MP] <<`, "You vanish into the smoke!");
+          return { ...state, mode: "EXPLORE", player: { ...p, stealthMode: true, stealth: 80 }, currentEnemy: null, log: log.slice(-LOG_LIMIT) };
         }
         case "Poison Blade": {
-          const dmg = p.stats.atk + rollDice(6);
-          enemy.stats.hp -= dmg;
+          const dealt = damageEnemy(enemy, p.stats.atk + rollDice(6), log, p);
           enemy.statusEffects = [...enemy.statusEffects, { type: "poison", turnsLeft: 3, damage: 4 }];
-          log.push(`>> Poison Blade! ${dmg} damage + POISON [-${skill.mpCost} MP] <<`);
+          log.push(`>> Poison Blade! ${dealt} damage + POISON [-${skill.mpCost} MP] <<`);
           break;
         }
-        // ICE Breaker, Overclock, Backstab handled by SPECIAL action
+        case "kill -9": {
+          const dealt = damageEnemy(enemy, p.stats.int * 2, log, p);
+          log.push(`>> kill -9 ${enemy.name.replace(/\W+/g, "_").toLowerCase()}: ${dealt} damage [-${skill.mpCost} MP] <<`);
+          break;
+        }
+        case "Restore Backup": {
+          const heal = Math.floor(p.stats.maxHp * 0.3);
+          p.stats.hp = Math.min(p.stats.maxHp, p.stats.hp + heal);
+          log.push(`>> Restored from last night's backup: +${heal} HP [-${skill.mpCost} MP] <<`);
+          break;
+        }
+        case "Google It": {
+          const roll = Math.random();
+          if (roll < 0.34) {
+            const heal = Math.floor(p.stats.maxHp * 0.25);
+            p.stats.hp = Math.min(p.stats.maxHp, p.stats.hp + heal);
+            log.push(`>> Google It: "how to not die" — top answer works! +${heal} HP <<`);
+          } else if (roll < 0.67) {
+            const dealt = damageEnemy(enemy, Math.floor(p.stats.atk * 2.5), log, p);
+            log.push(`>> Google It: found an exploit on page 2 of the results! ${dealt} damage <<`);
+          } else {
+            enemy.statusEffects = [...enemy.statusEffects, { type: "stun", turnsLeft: 1 }];
+            log.push(`>> Google It: asked a forum. ${enemy.name} is so confused by the replies it can't move. <<`);
+          }
+          break;
+        }
+        case "LOIC": {
+          const hits = [0, 1, 2].map(() => damageEnemy(enemy, Math.max(1, Math.floor(p.stats.atk * 0.7)), log, p));
+          log.push(`>> LOIC: DDoS! ${hits.join(" + ")} damage [-${skill.mpCost} MP] <<`);
+          break;
+        }
+        case "Smooth Talk": {
+          enemy.statusEffects = [...enemy.statusEffects, { type: "stun", turnsLeft: 1 }];
+          log.push(`>> "Hey, hey. Let's not do anything we'll regret." ${enemy.name} hesitates. [-${skill.mpCost} MP] <<`);
+          break;
+        }
+        case "Fake Badge": {
+          log.push(`>> You flash a fake ISW staff badge. ${enemy.name} lets you walk away. [-${skill.mpCost} MP] <<`);
+          return { ...state, mode: "EXPLORE", player: p, currentEnemy: null, log: log.slice(-LOG_LIMIT) };
+        }
         default: {
           log.push(`>> ${skill.name} used [-${skill.mpCost} MP] <<`);
           break;
         }
       }
 
-      if (enemy.stats.hp <= 0) {
-        enemy.alive = false;
-        p.xp += enemy.xpReward;
-        log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
-        p.comboCount = 0;
-        const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
-        const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-        return { ...state, mode: "EXPLORE", player: lvlP, enemies: newEnemies, currentEnemy: null, log: lvlLog };
-      }
-
-      // Enemy stunned = skip their attack
-      if (hasStatus(enemy.statusEffects, "stun")) {
-        log.push(`${enemy.name} is stunned!`);
-        return { ...state, player: p, currentEnemy: enemy, log: log.slice(-60) };
-      }
-
-      const { player: hitP, msgs } = enemyAttackRoll(enemy, p);
-      log.push(...msgs);
-      if (hitP.stats.hp <= 0) {
-        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<"] };
-      }
-      return { ...state, player: hitP, currentEnemy: enemy, log: log.slice(-60) };
+      return finishPlayerTurn(state, p, enemy, log);
     }
 
     /* === COMBAT: FLEE === */
@@ -823,19 +1271,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (state.mode !== "COMBAT" || !state.player || !state.currentEnemy) return state;
       const fleeRoll = rollD20();
       const slowPenalty = hasStatus(state.player.statusEffects, "slow") ? 4 : 0;
-      const fleeTarget = 10 - Math.floor(state.player.stats.spd / 3) + Math.floor(state.currentEnemy.stats.spd / 4) + slowPenalty;
-      const log = [...state.log];
+      const fleeTarget = 8 - Math.floor(state.player.stats.spd / 3) + Math.floor(state.currentEnemy.stats.spd / 4) + slowPenalty;
+      const { p, enemy, log } = copyRound(state);
       log.push(`Flee roll: d20(${fleeRoll}) vs DC ${fleeTarget}${slowPenalty ? " (slowed!)" : ""}`);
 
       if (fleeRoll >= fleeTarget) {
-        return { ...state, mode: "EXPLORE", currentEnemy: null, player: { ...state.player, comboCount: 0 }, log: addLog({ ...state, log }, "You escaped!") };
+        return { ...state, mode: "EXPLORE", currentEnemy: null, player: { ...p, comboCount: 0 }, log: [...log, "You escaped!"].slice(-LOG_LIMIT) };
       }
-      const { player: hitP, msgs } = enemyAttackRoll(state.currentEnemy, state.player);
-      log.push("Failed to flee!", ...msgs);
-      if (hitP.stats.hp <= 0) {
-        return { ...state, mode: "GAME_OVER", player: hitP, currentEnemy: null, log: [...log, "", ">>> SYSTEM FAILURE — YOU DIED <<<"] };
-      }
-      return { ...state, player: hitP, log: log.slice(-60) };
+      log.push("Failed to flee!");
+      return finishPlayerTurn(state, p, enemy, log);
     }
 
     /* === USE ITEM === */
@@ -862,32 +1306,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           break;
         case "emp":
           if (state.currentEnemy) {
-            const enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats } };
-            const empDmg = 25;
-            enemy.stats.hp -= empDmg;
+            const enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats }, statusEffects: [...state.currentEnemy.statusEffects] };
+            const dealt = damageEnemy(enemy, 25, log, p);
             enemy.stats.def = Math.max(0, enemy.stats.def - 3);
-            log.push(`EMP blast! ${empDmg} damage, enemy DEF reduced.`);
-            if (enemy.stats.hp <= 0) {
-              enemy.alive = false;
-              p.xp += enemy.xpReward;
-              log.push(`${enemy.name} destroyed! +${enemy.xpReward} XP`);
-              const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
-              const newEnemies = state.enemies.map((e) => (e.id === enemy.id ? { ...e, alive: false } : e));
-              p.inventory = p.inventory.filter((_, i) => i !== idx);
-              return { ...state, mode: "EXPLORE", player: { ...lvlP, inventory: p.inventory }, enemies: newEnemies, currentEnemy: null, log: lvlLog };
-            }
+            log.push(`EMP blast! ${dealt} damage, enemy DEF reduced.`);
             p.inventory = p.inventory.filter((_, i) => i !== idx);
-            return { ...state, player: p, currentEnemy: enemy, log: log.slice(-60) };
+            if (enemy.stats.hp <= 0) return killEnemy(state, p, enemy, log);
+            return { ...state, player: p, currentEnemy: enemy, log: log.slice(-LOG_LIMIT) };
           }
           log.push("No target for EMP.");
           break;
         default:
           log.push(`Can't use ${item.name} right now.`);
-          return { ...state, log: log.slice(-60) };
+          return { ...state, log: log.slice(-LOG_LIMIT) };
       }
 
       p.inventory = p.inventory.filter((_, i) => i !== idx);
-      return { ...state, player: p, log: log.slice(-60) };
+      return { ...state, player: p, log: log.slice(-LOG_LIMIT) };
     }
 
     /* === STEALTH TOGGLE === */
@@ -900,10 +1335,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, player: { ...p, stealthMode: true, stealth: 100 }, log: addLog(state, "🕶 Stealth mode ON. Detection meter: 100") };
     }
 
-    /* === PUZZLE INPUT === */
+    /* === TYPED INPUT (terminals, lockdown, haggling) === */
     case "PUZZLE_INPUT": {
-      if (state.mode !== "PUZZLE") return state;
-       const char = action.char;
+      if (!acceptsTyping(state)) return state;
+      const char = action.char;
       // Allow letters, digits, spaces, and ISW flag characters: { } _
       const allowed = /^[A-Za-z0-9 {}_]$/;
       if (char.length === 1 && allowed.test(char)) {
@@ -912,32 +1347,123 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return state;
     }
 
+    case "PUZZLE_SET": {
+      if (!acceptsTyping(state)) return state;
+      return { ...state, puzzleInput: action.value.toUpperCase().replace(/[^A-Z0-9 {}_]/g, "") };
+    }
+
     case "PUZZLE_BACKSPACE": {
-      if (state.mode !== "PUZZLE") return state;
+      if (!acceptsTyping(state)) return state;
       return { ...state, puzzleInput: state.puzzleInput.slice(0, -1) };
     }
 
     case "PUZZLE_SUBMIT": {
+      if (state.mode === "LOCKDOWN") return submitLockdown(state);
+      if (state.mode === "SHOP") return submitHaggle(state);
       if (state.mode !== "PUZZLE" || !state.currentPuzzle || !state.player) return state;
       const puzzle = state.currentPuzzle;
       if (state.puzzleInput.toUpperCase() === puzzle.plainText.toUpperCase()) {
         const p = { ...state.player, stats: { ...state.player.stats } };
+        const credits = Math.floor(terminalCredits(puzzle.floor) * (hasPerk(state.player, "credit_miner") ? 1.5 : 1));
         p.xp += puzzle.rewardXp;
-        let log = addLog(state, "", `>>> DECRYPTED: ${puzzle.plainText} <<<`, `+${puzzle.rewardXp} XP!`);
+        p.credits += credits;
+        let log = addLog(state, "", `>>> DECRYPTED: ${puzzle.plainText} <<<`, `+${puzzle.rewardXp} XP!`, `💰 +${credits} credits`);
         if (puzzle.reward) {
           p.inventory = [...p.inventory, puzzle.reward];
           log = [...log, `Reward: ${puzzle.reward.name}`];
         }
         const { player: lvlP, log: lvlLog } = checkLevelUp(p, log);
         const newPuzzles = state.puzzles.map(pz => pz.id === puzzle.id ? { ...pz, solved: true } : pz);
-        return { ...state, mode: "EXPLORE", player: lvlP, currentPuzzle: null, puzzleInput: "", puzzles: newPuzzles, log: lvlLog };
+        const runStats = { ...state.runStats, creditsEarned: state.runStats.creditsEarned + credits };
+        return { ...state, mode: "EXPLORE", player: lvlP, currentPuzzle: null, puzzleInput: "", puzzles: newPuzzles, log: lvlLog, runStats };
       }
       return { ...state, puzzleInput: "", log: addLog(state, `Wrong! "${state.puzzleInput}" is incorrect. Try again.`) };
     }
 
     case "PUZZLE_QUIT": {
+      if (state.mode === "SHOP" && state.haggle) {
+        return { ...state, haggle: null, puzzleInput: "", shopLine: "Changed your mind? Full price it is." };
+      }
+      if (state.mode === "UPLINK") {
+        return { ...state, mode: "EXPLORE", puzzleInput: "", log: addLog(state, "Uplink disconnected.", "") };
+      }
       if (state.mode !== "PUZZLE") return state;
       return { ...state, mode: "EXPLORE", currentPuzzle: null, puzzleInput: "", log: addLog(state, "Terminal hack aborted.") };
+    }
+
+    /* === FLAG UPLINK (the flag check is async, so the UI checks and reports here) === */
+    case "UPLINK_RESULT": {
+      if (state.mode !== "UPLINK") return state;
+      const msg = action.title
+        ? [`>>> FLAG ACCEPTED: ${action.title} <<<`, `${action.flagsFound} hidden flags uploaded.`, ...[taunt("uplink", state.player?.className)].filter((t): t is string => !!t)]
+        : [`UPLINK REJECTED: "${action.input}" is not one of ours.`];
+      return { ...state, puzzleInput: "", flagsFound: action.flagsFound, log: addLog(state, ...msg) };
+    }
+
+    /* === FINAL BOSS LOCKDOWN TIMER === */
+    case "LOCKDOWN_TIMEOUT": {
+      if (state.mode !== "LOCKDOWN" || !state.currentEnemy) return state;
+      const enemy = { ...state.currentEnemy, stats: { ...state.currentEnemy.stats } };
+      const heal = Math.floor(enemy.stats.maxHp * LOCKDOWN_HEAL);
+      enemy.stats.hp = Math.min(enemy.stats.maxHp, enemy.stats.hp + heal);
+      return {
+        ...state, mode: "COMBAT", currentEnemy: enemy, currentPuzzle: null, puzzleInput: "",
+        log: addLog(state, `⏱ LOCKDOWN TIMEOUT — answer was ${state.currentPuzzle?.plainText}.`, `${enemy.name} repairs itself: +${heal} HP [${enemy.stats.hp}/${enemy.stats.maxHp}]`, ""),
+      };
+    }
+
+    /* === SHOP === */
+    case "SHOP_BUY": {
+      if (state.mode !== "SHOP" || !state.player || state.haggle) return state;
+      const merchant = state.merchants.find(m => m.id === state.currentMerchant);
+      const entry = SHOP_STOCK[action.index];
+      if (!merchant || !entry) return state;
+      const price = shopPrice(entry, merchant.floor, merchant, state.player);
+      if (state.player.credits < price) {
+        return { ...state, shopLine: line("tooPoor") };
+      }
+      const p = { ...state.player, stats: { ...state.player.stats }, credits: state.player.credits - price };
+      if (entry.item) p.inventory = [...p.inventory, { ...entry.item, id: `${merchant.id}-${merchant.purchases}` }];
+      if (entry.stat) p.stats[entry.stat.key] += entry.stat.value;
+      tally.spent += price;
+      return {
+        ...state, player: p,
+        merchants: withMerchant(state, m => ({ ...m, purchases: m.purchases + 1 })),
+        shopLine: line("bought"),
+        log: addLog(state, `Bought ${entry.name} for ${price} credits. (${p.credits} left)`),
+      };
+    }
+
+    case "SHOP_HAGGLE": {
+      if (state.mode !== "SHOP" || state.haggle) return state;
+      const merchant = state.merchants.find(m => m.id === state.currentMerchant);
+      if (!merchant) return state;
+      if (merchant.haggle === "won") return { ...state, shopLine: "You already got your discount. Don't push it." };
+      if (merchant.haggle === "lost") return { ...state, shopLine: line("haggleLocked") };
+      return { ...state, haggle: createHaggle(), puzzleInput: "", shopLine: line("haggleStart") };
+    }
+
+    case "SHOP_LEAVE": {
+      if (state.mode !== "SHOP") return state;
+      const log = addLog(state, "You leave the shop.");
+      chan(log, "shop", state.player);
+      return { ...state, mode: "EXPLORE", currentMerchant: null, haggle: null, puzzleInput: "", log: [...log, ""].slice(-LOG_LIMIT) };
+    }
+
+    /* === PERKS === */
+    case "PICK_PERK": {
+      if (state.mode !== "PERK" || !state.perkChoices || !state.player) return state;
+      const id = state.perkChoices[action.index];
+      if (!id) return state;
+      const p = applyPerk(state.player, id);
+      p.pendingPerks = Math.max(0, p.pendingPerks - 1);
+      return { ...state, mode: "EXPLORE", player: p, perkChoices: null, log: addLog(state, `>> Perk acquired: ${PERKS[id].name} — ${PERKS[id].description} <<`, "") };
+    }
+
+    /* === SOCIAL ENGINEER TALK MODE === */
+    case "TALK_INPUT": {
+      if (state.mode !== "TALK") return state;
+      return talkReducer(state, action.text);
     }
 
     /* === DIALOGUE === */
@@ -986,7 +1512,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
             "═══ STATUS EFFECTS ═══",
             ...statusLines,
             "",
-            `MP: ${p.stats.mp}/${p.stats.maxMp} | Stealth: ${p.stealthMode ? `ON (${p.stealth})` : "OFF"}`,
+            `MP: ${p.stats.mp}/${p.stats.maxMp} | Credits: ${p.credits} | Stealth: ${p.stealthMode ? `ON (${p.stealth})` : "OFF"}`,
             "",
             "Press [I] to close. [1-9] to use item.",
           ),
@@ -1003,4 +1529,39 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     default:
       return state;
   }
+}
+
+function acceptsTyping(state: GameState): boolean {
+  return state.mode === "PUZZLE" || state.mode === "LOCKDOWN" || state.mode === "UPLINK" || (state.mode === "SHOP" && state.haggle !== null);
+}
+
+function submitLockdown(state: GameState): GameState {
+  if (!state.currentPuzzle || !state.currentEnemy) return state;
+  if (state.puzzleInput.toUpperCase() !== state.currentPuzzle.plainText.toUpperCase()) {
+    return { ...state, puzzleInput: "", log: addLog(state, `ACCESS DENIED: "${state.puzzleInput}". Keep trying!`) };
+  }
+  const enemy = {
+    ...state.currentEnemy,
+    statusEffects: [
+      ...state.currentEnemy.statusEffects.filter(e => e.type !== "stun" && e.type !== "exposed"),
+      { type: "stun" as const, turnsLeft: 2 },
+      { type: "exposed" as const, turnsLeft: 2 },
+    ],
+  };
+  return {
+    ...state, mode: "COMBAT", currentEnemy: enemy, currentPuzzle: null, puzzleInput: "",
+    runStats: { ...state.runStats, lockdownsCracked: state.runStats.lockdownsCracked + 1 },
+    log: addLog(state, `>>> LOCKDOWN CRACKED: ${state.currentPuzzle.plainText} <<<`, `${enemy.name} is STUNNED and EXPOSED (double damage) for 2 turns!`, ""),
+  };
+}
+
+function submitHaggle(state: GameState): GameState {
+  if (!state.haggle) return state;
+  const won = state.puzzleInput.toUpperCase() === state.haggle.answer;
+  return {
+    ...state, haggle: null, puzzleInput: "",
+    merchants: withMerchant(state, m => ({ ...m, haggle: won ? "won" : "lost" })),
+    shopLine: line(won ? "haggleWon" : "haggleLost"),
+    log: addLog(state, won ? ">> Haggle won: 20% off at this shop <<" : `>> Haggle failed (it was ${state.haggle.answer}) <<`),
+  };
 }

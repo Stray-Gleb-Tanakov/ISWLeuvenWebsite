@@ -1,24 +1,35 @@
+import { useState } from "react";
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
 import GameTerminal from "@/components/GameTerminal";
+import Leaderboard from "@/components/Leaderboard";
+import { useFoundFlags } from "@/hooks/UseFoundFlags";
 
-const Game = () => (
-  <PageLayout>
-    <div className="h-screen flex flex-col items-center px-4 py-4 overflow-hidden">
-      <div className="w-full max-w-4xl mb-2">
-        <BackButton />
+const Game = () => {
+  const { found, submit } = useFoundFlags();
+  const [leaderboardKey, setLeaderboardKey] = useState(0);
+
+  return (
+    <PageLayout>
+      <div className="min-h-screen flex flex-col items-center px-4 py-4">
+        <div className="w-full max-w-4xl mb-2">
+          <BackButton />
+        </div>
+        <h1 className="text-xl font-mono text-primary text-glow mb-1">
+          <span className="text-muted-foreground">$</span> ./mainframe_breach
+        </h1>
+        <p className="text-muted-foreground text-xs font-mono mb-3">
+          // A cyberpunk terminal RPG — escape the corrupted mainframe
+        </p>
+        <div className="w-full max-w-5xl">
+          <GameTerminal found={found} onSubmitFlag={submit} onScoreSubmitted={() => setLeaderboardKey((k) => k + 1)} />
+        </div>
+        <div className="w-full max-w-5xl mt-6 mb-8">
+          <Leaderboard refreshKey={leaderboardKey} />
+        </div>
       </div>
-      <h1 className="text-xl font-mono text-primary text-glow mb-1">
-        <span className="text-muted-foreground">$</span> ./mainframe_breach
-      </h1>
-      <p className="text-muted-foreground text-xs font-mono mb-3">
-        // A cyberpunk terminal RPG — escape the corrupted mainframe
-      </p>
-      <div className="flex-1 w-full max-w-5xl min-h-0">
-        <GameTerminal />
-      </div>
-    </div>
-  </PageLayout>
-);
+    </PageLayout>
+  );
+};
 
 export default Game;
