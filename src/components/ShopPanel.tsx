@@ -1,5 +1,6 @@
 import type { GameState } from "@/game/types";
 import { SHOP_STOCK, SHOPKEEPERS, shopPrice } from "@/game/merchant";
+import { SHOPKEEPER } from "@/game/portraits";
 
 interface ShopPanelProps {
   state: GameState;
@@ -19,7 +20,12 @@ const ShopPanel = ({ state, dispatch }: ShopPanelProps) => {
         <span className="text-yellow-400 font-bold">$ {keeper.name}</span>
         <span className="text-primary">💰 {credits} cr</span>
       </div>
-      <p className="text-foreground/90 italic">"{state.shopLine}"</p>
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <pre className="text-lime-300 leading-none text-[4px] sm:text-[6px] select-none shrink-0 self-center" aria-label="The shopkeeper">
+          {SHOPKEEPER.join("\n")}
+        </pre>
+        <p className="text-foreground/90 italic">"{state.shopLine}"</p>
+      </div>
 
       {state.haggle ? (
         <div className="border border-border p-2">

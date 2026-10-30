@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Hono } from "hono";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
-import { db } from "./db";
+import { db } from "./db.ts";
 
 // ---- Mainframe Breach leaderboard (/mainframe_breach) ----
 

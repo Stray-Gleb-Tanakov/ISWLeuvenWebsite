@@ -48,6 +48,9 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
     ? (suspicion >= 60 && npc.angryPortrait ? npc.angryPortrait : npc.portrait)
     : talk.scene === "east" ? "isw_chan" : null;
 
+  // ISW-Chan's frame is 70 columns: draw it small, with square-ish cells like the original
+  const portraitSize = portraitKey?.startsWith("isw_chan") ? "leading-none text-[5px] sm:text-[8px]" : "leading-tight text-[10px]";
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -68,11 +71,11 @@ const TalkPanel = ({ state, dispatch, narrow }: TalkPanelProps) => {
           {view.map((row, r) => <div key={r}>{runs(row).map((run, i) => <span key={i} className={run.cls}>{run.text}</span>)}</div>)}
         </pre>
         {portraitKey && !narrow && (
-          <pre className="text-pink-300 leading-tight text-[10px] select-none shrink-0" aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
+          <pre className={`text-pink-300 select-none shrink-0 ${portraitSize}`} aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
         )}
       </div>
       {portraitKey && narrow && (
-        <pre className="text-pink-300 leading-tight text-[10px] select-none" aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
+        <pre className={`text-pink-300 select-none ${portraitSize}`} aria-label={npc?.name ?? "ISW-Chan"}>{PORTRAITS[portraitKey].join("\n")}</pre>
       )}
       {npc && <p className="text-pink-300">Talking to {npc.name}. Type anything.</p>}
       <form onSubmit={submit} className="flex gap-2">

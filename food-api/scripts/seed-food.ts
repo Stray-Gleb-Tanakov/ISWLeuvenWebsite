@@ -1,15 +1,18 @@
 // Loads the menu from data/food.json into food_categories / food_items.
-//   bun run seed:food            -> only inserts items that don't exist yet
-//   bun run seed:food --update   -> also overwrites existing items with the JSON
-//   kubectl -n iswleuven exec deploy/food-api -- bun run seed:food
+//   npm run seed:food                 -> only inserts items that don't exist yet
+//   npm run seed:food -- --update     -> also overwrites existing items with the JSON
+//   kubectl -n iswleuven exec deploy/food-api -- npm run seed:food
 // After the first seed, the database is the source of truth: edit prices there.
-import { db, migrate } from "../src/db";
+import { readFile } from "node:fs/promises";
+import { db, migrate } from "../src/db.ts";
 
 type FoodItemInput = { slug: string; name: string; nonMember: number | null; member: number | null; available: boolean };
 type FoodCategoryInput = { id: string; title: string; emoji: string; items: FoodItemInput[] };
 
 const update = process.argv.includes("--update");
-const categories: FoodCategoryInput[] = await Bun.file(new URL("../data/food.json", import.meta.url)).json();
+const categories: FoodCategoryInput[] = JSON.parse(
+  await readFile(new URL("../data/food.json", import.meta.url), "utf8"),
+);
 const onDuplicate = (sql: string) => (update ? `ON DUPLICATE KEY UPDATE ${sql}` : "ON DUPLICATE KEY UPDATE id = id");
 
 await migrate();
