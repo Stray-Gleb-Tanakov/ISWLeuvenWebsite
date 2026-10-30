@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { GameState } from "@/game/types";
 import { computeScore, SCORE_VERSION } from "@/game/score";
 import { FLAG_POINTS } from "@/game/flags";
+import { ENDING_TITLES } from "@/game/ending";
 import { submitScore } from "@/lib/scores";
 import { badgeTitle } from "@/game/cosmetics";
 
@@ -27,7 +28,7 @@ interface ScoreSubmitProps {
 function runSummary(state: GameState): string {
   const r = state.runStats;
   const parts = [
-    state.mode === "WIN" ? (state.talk ? "Talked your way through floor 1" : "Escaped the mainframe") : `Killed by ${r.killedBy ?? "something"} on floor ${(state.player?.floor ?? 0) + 1}`,
+    state.mode === "WIN" ? (state.talk ? "Talked your way through floor 1" : state.endingId ? ENDING_TITLES[state.endingId] : "Escaped the mainframe") : `Killed by ${r.killedBy ?? "something"} on floor ${(state.player?.floor ?? 0) + 1}`,
     `${r.damageDealt} damage dealt`,
     `${r.damageTaken} taken`,
     r.bracesFaced > 0 ? `${r.perfectBraces}/${r.bracesFaced} perfect braces` : "",

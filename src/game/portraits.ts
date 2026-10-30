@@ -132,6 +132,109 @@ const OFFICER = [
   "##%###*##**+=*%%%#%%%**+*###**#-*=++==+++++*=-=-+==++==+*%%%#% **     ",
 ];
 
+/* ----- Her expressions: eyes and mouth redrawn on the same portrait -----
+   Eyes cover rows 20-23 (left eye from col 18, right eye from col 39), 11 wide each;
+   the mouth covers rows 29-31 from col 26, 13 wide. null = as originally drawn. */
+const EYES = {
+  open: null,
+  closed: [
+    "           ",
+    "           ",
+    " '.......' ",
+    "  '''''''  ",
+  ],
+  happy: [
+    "           ",
+    "   .:::.   ",
+    " .:'   ':. ",
+    " '       ' ",
+  ],
+  half: [
+    "           ",
+    ":::::::::::",
+    " ':::::::' ",
+    "           ",
+  ],
+  wide: [
+    "  .:::::.  ",
+    " ::  .  :: ",
+    " :: ::: :: ",
+    "  ':::::'  ",
+  ],
+  angry: [
+    "::..       ",
+    " '::::..   ",
+    "   :::::.  ",
+    "    '''''  ",
+  ],
+  sad: [
+    "       ..::",
+    "   ..::''  ",
+    "  :::::::  ",
+    "  ':::::'. ",
+  ],
+  heart: [
+    " .::. .::. ",
+    " ::::::::: ",
+    "  ':::::'  ",
+    "    ':'    ",
+  ],
+} satisfies Record<string, string[] | null>;
+
+const MOUTHS = {
+  neutral: null,
+  smile: [
+    "  '.     .'  ",
+    "    '''''    ",
+    "             ",
+  ],
+  grin: [
+    "   .:::::.   ",
+    "   ::::::'   ",
+    "    '''''    ",
+  ],
+  smirk: [
+    "        ..:' ",
+    "   ''''''    ",
+    "             ",
+  ],
+  frown: [
+    "    .....    ",
+    "  .'     '.  ",
+    "             ",
+  ],
+  o: [
+    "     .:.     ",
+    "    :: ::    ",
+    "     ':'     ",
+  ],
+  flat: [
+    "   .......   ",
+    "             ",
+    "             ",
+  ],
+} satisfies Record<string, string[] | null>;
+
+export type IswEyes = keyof typeof EYES;
+export type IswMouth = keyof typeof MOUTHS;
+
+function paint(rows: string[], art: string[], top: number, left: number) {
+  art.forEach((line, i) => {
+    const r = rows[top + i];
+    rows[top + i] = r.slice(0, left) + line + r.slice(left + line.length);
+  });
+}
+
+/* ISW-Chan's portrait with the given eyes and mouth */
+export function iswChanFace(eyes: IswEyes, mouth: IswMouth = "neutral"): string[] {
+  const rows = [...ISW_CHAN];
+  const e: string[] | null = EYES[eyes];
+  if (e) { paint(rows, e, 20, 18); paint(rows, e.map((l) => [...l].reverse().join("")), 20, 39); } // right eye mirrored
+  const m: string[] | null = MOUTHS[mouth];
+  if (m) paint(rows, m, 29, 26);
+  return rows;
+}
+
 /* Her corrupted look: same frame, some cells eaten by noise */
 function glitch(art: string[]): string[] {
   return art.map((line, y) =>

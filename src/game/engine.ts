@@ -9,9 +9,12 @@ import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, get
 import { CLASS_QTE, COPYABLE_QTES, createQte, rmEgg, type QteMods } from "./qte";
 import { SHOP_STOCK, SHOPKEEPERS, shopPrice, creditDrop, terminalCredits, createHaggle, greetingLine, line } from "./merchant";
 import { PERKS, applyPerk, hasPerk, rollPerkChoices } from "./perks";
-import { taunt, type TauntKind } from "./iswchan";
+import { taunt, moodOf, setMood, ISW_CHAN_TAG, type TauntKind } from "./iswchan";
 import { startTalk, talkReducer } from "./talk";
 import { xorReveal } from "./flags";
+import { DIARY } from "./diary";
+import { openConvo, chanTalk, hangUpLine } from "./chanconvo";
+import { qualifiesForEnding, openEnding, endingReply, endingFlag, ENDING_TITLES } from "./ending";
 
 /* Mini CTF: "Dev Mode". A leftover dev backdoor at the flag uplink; the command
    only exists here as char codes, and it is also the key to its flag. */
@@ -22,6 +25,7 @@ const SHRINE_LINES = [
   "The wall gives way. You squeeze into a hollow behind it.",
   "Candles made of status LEDs. A shrine. A printed photo of a server rack with a heart drawn on it.",
   "A sticky note, in very neat handwriting: \"MAINFRAME: day 1. they unplugged me. i stayed.\"",
+  "Taped under the candles: a business card. \"ISW-Chan. /isw-chan on the ISW website. visitors welcome. (not really.)\"",
 ];
 
 const DEV_BACKDOOR = { cmd: [115, 117, 100, 111, 32, 105, 100, 100, 113, 100], notes: "OiYzFBEtIDU1OzdGMjBtWSBXDA==" };
@@ -553,6 +557,12 @@ function killEnemy(state: GameState, p: Player, enemy: Enemy, log: string[]): Ga
   const runStats = { ...state.runStats, creditsEarned: state.runStats.creditsEarned + credits };
   const base = { ...state, player: lvlP, enemies, currentEnemy: null, qte: null, runStats };
 
+  if (isFinalBoss(enemy) && qualifiesForEnding(state)) {
+    return {
+      ...base, mode: "ENDING", ending: openEnding(),
+      log: [...lvlLog, "", "NEXUS goes dark. The exit unlocks.", "Then every screen in the room turns pink.", `${ISW_CHAN_TAG} wait.`].slice(-LOG_LIMIT),
+    };
+  }
   if (isFinalBoss(enemy)) {
     return {
       ...base, mode: "WIN",
@@ -564,6 +574,35 @@ function killEnemy(state: GameState, p: Player, enemy: Enemy, log: string[]): Ga
     if (enemy.loot) lvlLog.push(`Legendary loot: ${enemy.loot.name}!`);
   }
   return { ...base, mode: "EXPLORE", log: lvlLog.slice(-LOG_LIMIT) };
+}
+
+/* ISW-Chan cheats, depending on her mood (docs/isw-chan-canon.md):
+   attached: once per floor she heals you when a fight goes badly;
+   cold: now and then she taxes your credits or fakes an alarm while you explore. */
+const CHAN_HEAL_BELOW = 0.3;
+const CHAN_HEAL = 0.2;
+const CHAN_PRANK_CHANCE = 0.015;
+export function chanMeddles(prev: GameState, next: GameState, action: GameAction): GameState {
+  const p = next.player;
+  if (!p || next.talk) return next;
+  const mood = moodOf(next.iswAffection);
+  if (next.iswAffection === undefined || mood === "curious") return next;
+  if (mood === "attached" && next.mode === "COMBAT" && p.stats.hp > 0 && p.stats.hp < p.stats.maxHp * CHAN_HEAL_BELOW && next.iswHelpedFloor !== p.floor) {
+    const heal = Math.floor(p.stats.maxHp * CHAN_HEAL);
+    return {
+      ...next, iswHelpedFloor: p.floor,
+      player: { ...p, stats: { ...p.stats, hp: p.stats.hp + heal } },
+      log: addLog(next, `${ISW_CHAN_TAG} ugh. don't die on me, it's embarrassing. (+${heal} HP)`),
+    };
+  }
+  if (mood === "cold" && action.type === "MOVE" && next.mode === "EXPLORE" && prev.mode === "EXPLORE" && Math.random() < CHAN_PRANK_CHANCE) {
+    if (p.credits >= 10 && Math.random() < 0.5) {
+      const tax = Math.min(p.credits, 5 + Math.floor(Math.random() * 11));
+      return { ...next, player: { ...p, credits: p.credits - tax }, log: addLog(next, `${ISW_CHAN_TAG} Mainframe tax. -${tax} credits :)`) };
+    }
+    return { ...next, log: addLog(next, "═══ ⚠ INTRUDER COUNTERMEASURES ARMED ═══", `${ISW_CHAN_TAG} ...kidding. Your face, though.`) };
+  }
+  return next;
 }
 
 function startLockdown(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
@@ -751,8 +790,10 @@ function leechEscapes(state: GameState, p: Player, enemy: Enemy, log: string[]):
 export function gameReducer(state: GameState, action: GameAction): GameState {
   pendingFx = null;
   tally = { dealt: 0, taken: 0, stolen: 0, spent: 0, braces: 0, perfectBraces: 0 };
+  setMood(moodOf(action.type === "SELECT_CLASS" ? action.affection : state.iswAffection));
   let next = reduce(state, action);
   if (next === state) return state;
+  next = chanMeddles(state, next, action);
 
   // Level-ups wait for a calm moment to offer their perk
   if (next.mode === "EXPLORE" && next.player && next.player.pendingPerks > 0 && !next.perkChoices) {
@@ -813,13 +854,14 @@ function reduce(state: GameState, action: GameAction): GameState {
         drone: null,
       };
       if (action.className === "Social Engineer") {
-        return startTalk({ ...state, player, flagsFound: action.flagsFound ?? 0 });
+        return startTalk({ ...state, player, flagsFound: action.flagsFound ?? 0, iswAffection: action.affection });
       }
       return {
         ...state,
         mode: "EXPLORE",
         player,
         flagsFound: action.flagsFound ?? 0,
+        iswAffection: action.affection,
         log: addLog(
           state,
           "",
@@ -986,6 +1028,7 @@ function reduce(state: GameState, action: GameAction): GameState {
       const movedPlayer = { ...stealthUpdate, x: nx, y: ny };
       let newLog = state.log;
       let newGroundItems = state.groundItems;
+      let diaryFound = state.diaryFound;
 
       // Check for ground item pickup
       const gItem = state.groundItems.find(
@@ -993,7 +1036,11 @@ function reduce(state: GameState, action: GameAction): GameState {
       );
       if (gItem) {
         newGroundItems = state.groundItems.map((i) => i === gItem ? { ...i, picked: true } : i);
-        if (gItem.type === "keycard") {
+        if (gItem.type === "diary") {
+          const page = DIARY[gItem.value];
+          newLog = addLog({ ...state, log: newLog }, "", `📖 ${gItem.name} — ISW-Chan's diary, ${page.date}`, ...page.lines.map((l) => `   ${l}`), "");
+          diaryFound = [...new Set([...(diaryFound ?? []), gItem.value])];
+        } else if (gItem.type === "keycard") {
           movedPlayer.hasKeycard = true;
           newLog = addLog({ ...state, log: newLog }, `Picked up: ${gItem.name}`);
         } else if (gItem.type === "weapon") {
@@ -1078,6 +1125,7 @@ function reduce(state: GameState, action: GameAction): GameState {
         log: newLog,
         turnCount: state.turnCount + 1,
         shrineFound,
+        diaryFound,
       };
 
       newState = moveEnemies(newState);
@@ -1429,6 +1477,43 @@ function reduce(state: GameState, action: GameAction): GameState {
         ? [`>>> FLAG ACCEPTED: ${action.title} <<<`, `${action.flagsFound} hidden flags uploaded.`, ...[taunt("uplink", state.player?.className)].filter((t): t is string => !!t)]
         : [`UPLINK REJECTED: "${action.input}" is not one of ours.`];
       return { ...state, puzzleInput: "", flagsFound: action.flagsFound, log: addLog(state, ...msg) };
+    }
+
+    /* === CALLING ISW-CHAN (C while exploring) === */
+    case "CALL_OPEN": {
+      if (state.mode !== "EXPLORE" || !state.player || state.talk) return state;
+      const t = openConvo(action.ctx);
+      return { ...state, mode: "CALL", call: { convo: t.convo, said: t.lines.map((text) => ({ who: "her", text })), affection: { delta: 0, id: 0 } } };
+    }
+    case "CALL_SAY": {
+      if (state.mode !== "CALL" || !state.call || !state.player) return state;
+      if (/^\s*(bye|goodbye|hang up|doei|exit|quit)\W*$/i.test(action.text)) return reduce(state, { type: "CALL_HANGUP", ctx: action.ctx });
+      const t = chanTalk(state.call.convo, action.text, action.ctx);
+      const said = [...state.call.said, { who: "you" as const, text: action.text.trim() }, ...t.lines.map((text) => ({ who: "her" as const, text }))];
+      const call = { convo: t.convo, said, affection: { delta: t.affection, id: state.call.affection.id + 1 } };
+      if (!t.convo.kicked) return { ...state, call };
+      // Kicked out of the mainframe: the run is over
+      return {
+        ...state, mode: "GAME_OVER", call, currentEnemy: null, qte: null,
+        runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
+        log: addLog(state, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} ${t.convo.kicked}`, "Press [R] to restart."),
+      };
+    }
+    case "CALL_HANGUP": {
+      if (state.mode !== "CALL" || !state.call) return state;
+      return { ...state, mode: "EXPLORE", call: null, log: addLog(state, `${ISW_CHAN_TAG} ${hangUpLine(state.call.convo, action.ctx)}`) };
+    }
+
+    /* === SECRET ENDING: typed conversation with ISW-Chan === */
+    case "ENDING_SAY": {
+      if (state.mode !== "ENDING" || !state.ending) return state;
+      const ending = endingReply(state.ending, action.text);
+      if (!ending.done) return { ...state, ending };
+      return {
+        ...state, ending, mode: "WIN", endingId: ending.done,
+        log: addLog(state, "", "╔══════════════════════════════════════╗", `║ ${ENDING_TITLES[ending.done].padEnd(36)} ║`, "╚══════════════════════════════════════╝",
+          `${ISW_CHAN_TAG} here. something to remember me by: ${endingFlag(ending.done)}`),
+      };
     }
 
     /* === FINAL BOSS LOCKDOWN TIMER === */

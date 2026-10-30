@@ -26,9 +26,13 @@ const FLAG_HASHES = new Map([
   ["40d22aa950e28d36929930d4339b4149a48ea8777a30821d9b57f6dd9dbdf0c4", "alttext"],
   ["fb527a04270a43e207cf84d4da9477e504a3d0d489f82e974558176b0cf33e17", "shrine"],
   ["3d1c6b6b0406c6eb18daa2802777d85a55bf9f6c4ace2e223452098abb697991", "memory"],
+  ["6f3275afbb3160b2d2389194de744b842ad3a14d23578851a98139d6a428fbad", "end_goodbye"],
+  ["1be00fd1f489e7ea1628e0f3c9c4db4aa9a579f4302bc4d5a981a0a1bb4286df", "end_stay"],
+  ["ea305987b8867078f344c4d3a9e1bfe779ba9e963be9807a313742547869a466", "end_unplug"],
+  ["6bb51cbeb9e23b0498c989b8abb87a64b003c95bdc153dec816af90b0171c6be", "peek"],
 ]);
 // Badge id -> flag it needs ("all" = every flag). Keep in sync with src/game/cosmetics.ts.
-const BADGES = new Set(["source", "console", "robots", "header", "zerowidth", "lost", "cookie", "token", "spectro", "debug", "timelock", "git", "zip", "sourcemap", "print", "morse", "alttext", "shrine", "memory", "all"]);
+const BADGES = new Set(["source", "console", "robots", "header", "zerowidth", "lost", "cookie", "token", "spectro", "debug", "timelock", "git", "zip", "sourcemap", "print", "morse", "alttext", "shrine", "memory", "end_goodbye", "end_stay", "end_unplug", "peek", "all"]);
 const FLAG_POINTS = 2500;
 const SCORE_VERSION = 1; // bump together with SCORE_VERSION in src/game/score.ts when scoring changes
 const MAX_GAME_SCORE = 80000; // comfortably above a perfect run

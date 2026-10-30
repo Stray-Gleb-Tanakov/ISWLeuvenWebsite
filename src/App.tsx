@@ -12,11 +12,14 @@ import Game from "./pages/Game";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Members from "@/pages/Members.tsx";
 import Board from "./pages/Board";
+import IswChan from "./pages/IswChan";
 import SiteSecrets from "./components/SiteSecrets";
+import IswChanPeek from "./components/IswChanPeek";
 
 const App = () => (
   <BrowserRouter>
     <SiteSecrets />
+    <IswChanPeek />
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/events" element={<Events />} />
@@ -32,6 +35,7 @@ const App = () => (
       <Route path="/privacypolicy" element={<PrivacyPolicy />} />
       <Route path="/members" element={<Members />} />
       <Route path="/board" element={<Board />} />
+      <Route path="/isw-chan" element={<IswChan />} />
     </Routes>
   </BrowserRouter>
 );

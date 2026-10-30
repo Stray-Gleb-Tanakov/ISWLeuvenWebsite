@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { installConsoleChat } from "./game/consolechat";
 
 createRoot(document.getElementById("root")!).render(<App />);
 
@@ -16,3 +17,4 @@ console.log(
   "color:#00ff00",
   "color:#888;font-family:monospace",
 );
+installConsoleChat();

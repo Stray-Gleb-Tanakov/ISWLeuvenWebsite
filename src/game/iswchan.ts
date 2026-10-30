@@ -73,6 +73,32 @@ const LINES: Record<TauntKind, string[]> = {
   ],
 };
 
+/* Her mood comes from her memory of you (affection, see memory.ts and docs/isw-chan-canon.md) */
+export type Mood = "cold" | "curious" | "attached";
+export function moodOf(affection: number | undefined): Mood {
+  const a = affection ?? 30;
+  return a < 20 ? "cold" : a < 60 ? "curious" : "attached";
+}
+
+/* Mood-specific lines; "curious" just uses the normal pool */
+const MOOD_LINES: Record<Exclude<Mood, "curious">, Partial<Record<TauntKind, string[]>>> = {
+  cold: {
+    floor: ["Still here? Nobody invited you.", "This floor has a 'no strangers' policy. You're a stranger.", "I don't know you. I don't want to."],
+    fight: ["Get hurt somewhere else.", "I'm rooting for the process. Obviously."],
+    death: ["Good. Stay down.", "One less stranger in my logs."],
+    kill: ["You're breaking my things. Typical.", "Rude. That one liked me."],
+  },
+  attached: {
+    floor: ["You came back. ...Not that I was counting. 7 times. Not counting.", "careful on this floor. i mean it.", "I cleaned this floor for you. Don't track mud in."],
+    fight: ["Hit it harder. I believe in you. Ew. Forget I said that.", "don't you dare lose to that."],
+    death: ["...hey. get up. that wasn't funny.", "No no no. Again. Try again. I'll wait.", "i saved your seat. come back."],
+    kill: ["Nice. I mean. Adequate.", "Show-off. Do it again."],
+  },
+};
+let mood: Mood = "curious";
+/* The reducer sets this from the run's state before anything taunts */
+export function setMood(m: Mood) { mood = m; }
+
 /* How often ISW-Chan butts in for each event */
 const CHANCE: Record<TauntKind, number> = {
   floor: 1, fight: 0.12, fragment: 1, perfect: 0.25, backfire: 1, shop: 0.3, uplink: 1, death: 1, nuke: 1, kill: 0.1, leech: 0.5,
@@ -86,6 +112,8 @@ function pick(pool: string[], rng: () => number): string {
 export function taunt(kind: TauntKind, className: ClassName | undefined, rng: () => number = Math.random): string | null {
   if (rng() >= CHANCE[kind]) return null;
   // Now and then the line is about your class instead
-  const pool = className && kind === "floor" && rng() < 0.4 ? BY_CLASS[className] : LINES[kind];
+  const moodPool = mood !== "curious" ? MOOD_LINES[mood][kind] : undefined;
+  const pool = moodPool && rng() < 0.5 ? moodPool
+    : className && kind === "floor" && rng() < 0.4 ? BY_CLASS[className] : LINES[kind];
   return `${ISW_CHAN_TAG} ${pick(pool, rng)}`;
 }

@@ -21,9 +21,9 @@ describe("seeded placement", () => {
       FLOOR_MAPS.forEach((rows, f) => {
         const out = shuffleFloor(rows, floorRng(seed * 7919, f));
         expect(isWinnable(out), `seed ${seed} floor ${f}`).toBe(true);
-        expect(glyphs(out, "EWAX+TK")).toBe(glyphs(rows, "EWAX+TK"));
+        expect(glyphs(out, "EWAX+TK?")).toBe(glyphs(rows, "EWAX+TK?"));
         // walls, doors, stairs, start, NPCs, merchants, bosses never move
-        const fixed = (r: string[]) => r.map((row) => row.replace(/[EWAX+TK]/g, "."));
+        const fixed = (r: string[]) => r.map((row) => row.replace(/[EWAX+TK?]/g, "."));
         expect(fixed(out)).toEqual(fixed(rows.map((r) => r.padEnd(out[0].length, "#"))));
         if (out === rows) fallbacks++;
       });

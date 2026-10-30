@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { xorReveal } from "@/game/flags";
 import { useKonamiCode } from "@/hooks/UseKonamiCode";
+import { VISITS_KEY } from "@/game/chanenv";
 
 /* Site-wide easter eggs, mounted once in App:
    - the Konami code launches Mainframe Breach from any page
@@ -29,6 +30,11 @@ const SiteSecrets = () => {
   useKonamiCode(useCallback(() => {
     if (pathname !== "/mainframe_breach") navigate("/mainframe_breach", { state: { konami: true } }); // the game uses the arrows itself
   }, [navigate, pathname]));
+
+  // ISW-Chan counts your visits (she mentions it when you talk to her)
+  useEffect(() => {
+    try { localStorage.setItem(VISITS_KEY, String((Number(localStorage.getItem(VISITS_KEY)) || 0) + 1)); } catch { /* private window */ }
+  }, []);
 
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;

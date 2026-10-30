@@ -10,7 +10,7 @@
    - terminals never cut off a path, since quitting one leaves it blocking
    ==================================================== */
 
-const MOVABLE = new Set(["E", "+", "W", "A", "X", "T", "K"]);
+const MOVABLE = new Set(["E", "+", "W", "A", "X", "T", "K", "?"]);
 const SOLID = new Set(["#", "N", "$", "U", "B", "M"]); // things you can't walk through
 const ATTEMPTS = 40;
 
@@ -113,6 +113,7 @@ export function shuffleFloor(rows: string[], rng: () => number): string[] {
       ["W", free(open, 2)],
       ["A", free(open, 2)],
       ["X", free(open, 4)],
+      ["?", free(open, 5)],
     ];
     for (const [ch, pool] of plan) {
       for (let i = 0; i < (counts.get(ch) ?? 0) && ok; i++) ok = take(pool, ch);

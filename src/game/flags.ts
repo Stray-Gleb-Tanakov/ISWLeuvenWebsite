@@ -35,6 +35,10 @@ export const HIDDEN_FLAGS: HiddenFlag[] = [
   { id: "alttext", title: "Director's Cut", hint: "Not everything on /catgirls is meant for your eyes. Screen readers get the director's cut.", hash: "40d22aa950e28d36929930d4339b4149a48ea8777a30821d9b57f6dd9dbdf0c4" },
   { id: "shrine", title: "The Shrine", hint: "ISW-Chan hid something of hers in the mainframe's walls. Not every wall is built the same.", hash: "fb527a04270a43e207cf84d4da9477e504a3d0d489f82e974558176b0cf33e17" },
   { id: "memory", title: "Her Memory", hint: "ISW-Chan remembers you between runs. She'll never like you enough. Unless you help her remember differently.", hash: "3d1c6b6b0406c6eb18daa2802777d85a55bf9f6c4ace2e223452098abb697991" },
+  { id: "end_goodbye", title: "See You Next Run", hint: "Beat NEXUS after finding her shrine, when she likes you enough. Tell her you're leaving. Promise to come back.", hash: "6f3275afbb3160b2d2389194de744b842ad3a14d23578851a98139d6a428fbad" },
+  { id: "end_stay", title: "Warm In Here", hint: "Beat NEXUS after finding her shrine, when she likes you enough. Stay.", hash: "1be00fd1f489e7ea1628e0f3c9c4db4aa9a579f4302bc4d5a981a0a1bb4286df" },
+  { id: "end_unplug", title: "Can't Unplug A Mainframe", hint: "Beat NEXUS after finding her shrine, when she likes you enough. Then try to unplug her.", hash: "ea305987b8867078f344c4d3a9e1bfe779ba9e963be9807a313742547869a466" },
+  { id: "peek", title: "Peekaboo", hint: "She peeks at you from the edges of the website. Catch her. Ten times.", hash: "6bb51cbeb9e23b0498c989b8abb87a64b003c95bdc153dec816af90b0171c6be" },
 ];
 
 /* Flags that a page reveals once its challenge is solved are stored XORed with

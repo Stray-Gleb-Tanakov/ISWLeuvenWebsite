@@ -121,3 +121,13 @@
 .rc-sprite-cyan { color: hsl(190 100% 65%); text-shadow: 0 0 4px hsl(190 100% 50% / 0.6); }
 .rc-sprite-red { color: hsl(0 90% 65%); text-shadow: 0 0 4px hsl(0 90% 50% / 0.6); }
 .rc-sprite-green { color: hsl(140 90% 60%); text-shadow: 0 0 4px hsl(140 90% 50% / 0.6); }
+
+/* ----- ISW-Chan around the site (IswChanPeek, 404 dance) ----- */
+.isw-peek { text-shadow: 0 0 6px hsl(330 100% 60% / 0.7); cursor: pointer; }
+.isw-peek-left { animation: isw-peek-left 2.6s ease-in-out forwards; }
+.isw-peek-right { animation: isw-peek-right 2.6s ease-in-out forwards; }
+.isw-peek-bottom { animation: isw-peek-bottom 2.6s ease-in-out forwards; }
+@keyframes isw-peek-left { 0%, 100% { transform: translateX(-100%); } 25%, 75% { transform: translateX(0); } }
+@keyframes isw-peek-right { 0%, 100% { transform: translateX(100%); } 25%, 75% { transform: translateX(0); } }
+@keyframes isw-peek-bottom { 0%, 100% { transform: translateY(100%); } 25%, 75% { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .isw-peek-left, .isw-peek-right, .isw-peek-bottom { animation: none; } }

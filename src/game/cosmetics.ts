@@ -62,6 +62,10 @@ export const BADGES: Badge[] = [
   { id: "alttext", title: "◆ Screen Reader", requires: "alttext" },
   { id: "shrine", title: "◆ Wall Hugger", requires: "shrine" },
   { id: "memory", title: "◆ Memory Editor", requires: "memory" },
+  { id: "end_goodbye", title: "◆ Came Back", requires: "end_goodbye" },
+  { id: "end_stay", title: "◆ Stayed", requires: "end_stay" },
+  { id: "end_unplug", title: "◆ Tried To Unplug Her", requires: "end_unplug" },
+  { id: "peek", title: "◆ Caught Her Peeking", requires: "peek" },
   { id: "all", title: "★ ISW-Chan's Favourite", requires: "all" },
 ];
 

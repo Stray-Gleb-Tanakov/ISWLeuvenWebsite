@@ -17,7 +17,13 @@ import PerkPanel from "@/components/PerkPanel";
 import TalkPanel from "@/components/TalkPanel";
 import CosmeticsPicker from "@/components/CosmeticsPicker";
 import IswChanMemoryPanel from "@/components/IswChanMemoryPanel";
-import { loadMemory, recordRun, saveMemory } from "@/game/memory";
+import IswChanCam from "@/components/IswChanCam";
+import EndingPanel from "@/components/EndingPanel";
+import CallPanel from "@/components/CallPanel";
+import { readChanEnv } from "@/game/chanenv";
+import type { ChanContext } from "@/game/chanconvo";
+import { HIDDEN_FLAGS } from "@/game/flags";
+import { loadMemory, recordRun, saveMemory, adjustAffection } from "@/game/memory";
 import type { HiddenFlag } from "@/game/flags";
 import { ICONS, DEATH_TEXTS } from "@/game/cosmetics";
 import { PERKS, PARANOIA_WARNINGS, hasPerk } from "@/game/perks";
@@ -71,7 +77,7 @@ function renderMap(state: GameState, viewW: number, viewH: number, fake: { x: nu
       const puzzle = puzzles.find((p) => p.x === mx && p.y === my && p.floor === player.floor && !p.solved);
       if (puzzle) { row += "T"; continue; }
       const gItem = groundItems.find((i) => i.x === mx && i.y === my && i.floor === player.floor && !i.picked);
-      if (gItem) { row += gItem.type === "keycard" ? "K" : gItem.type === "weapon" ? "W" : gItem.type === "armor" ? "A" : "+"; continue; }
+      if (gItem) { row += gItem.type === "diary" ? "?" : gItem.type === "keycard" ? "K" : gItem.type === "weapon" ? "W" : gItem.type === "armor" ? "A" : "+"; continue; }
       const door = doors.find((d) => d.x === mx && d.y === my && d.floor === player.floor);
       if (door?.locked) { row += "D"; continue; }
       const ch = map[my]?.[mx] ?? " ";
@@ -149,7 +155,7 @@ function ClassSelect({ onSelect, flagsFound }: { onSelect: (c: ClassName) => voi
 /* ----- Legend ----- */
 function Legend() {
   return (
-    <div className="text-[10px] text-muted-foreground font-mono leading-tight mt-2">
+    <div className="text-[10px] text-muted-foreground font-mono leading-tight mt-2 text-center">
       <span className="text-primary">@</span>=You{" "}
       <span className="text-destructive">E</span>=Enemy{" "}
       <span className="text-yellow-400">N</span>=NPC{" "}
@@ -162,7 +168,8 @@ function Legend() {
       <span className="text-purple-400">B</span>=Boss{" "}
       <span className="text-amber-300">T</span>=Terminal{" "}
       <span className="text-yellow-400">$</span>=Shop{" "}
-      <span className="text-cyan-300">U</span>=Uplink
+      <span className="text-cyan-300">U</span>=Uplink{" "}
+      <span className="text-pink-400">?</span>=Diary
     </div>
   );
 }
@@ -301,6 +308,7 @@ function charColor(ch: string): string {
   if (ch === "T") return "text-amber-300";
   if (ch === "$") return "text-yellow-400 font-bold";
   if (ch === "U") return "text-cyan-300 font-bold";
+  if (ch === "?") return "text-pink-400 font-bold";
   if (ch === ">") return "text-primary";
   if (ch === "█") return "text-border";
   if (ch === "▓") return "text-border"; // ISW-Chan's hollow wall: same colour, different texture
@@ -334,11 +342,31 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
   useEffect(() => {
     if (!over) return;
     setMemory((m) => {
-      const next = recordRun(m, { won: state.mode === "WIN", shrine: !!state.shrineFound });
+      const next = recordRun(m, { won: state.mode === "WIN", shrine: !!state.shrineFound, diary: state.diaryFound ?? [] });
       saveMemory(next);
       return next;
     });
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // What ISW-Chan knows when you call her
+  const chanContext = useCallback((): ChanContext => {
+    const missing = HIDDEN_FLAGS.filter((f) => !found[f.id]);
+    const p = state.player;
+    return {
+      env: readChanEnv(), affection: memory.affection, runs: memory.runs, wins: memory.wins,
+      diary: new Set([...memory.diary, ...(state.diaryFound ?? [])]).size, shrine: memory.shrine || !!state.shrineFound,
+      flags: Object.keys(found).length, flagsTotal: HIDDEN_FLAGS.length,
+      flagHint: missing.length ? missing[Math.floor(Math.random() * missing.length)].hint : null,
+      run: p ? { className: p.className, floor: p.floor, hp: p.stats.hp, maxHp: p.stats.maxHp, credits: p.credits, level: p.level } : undefined,
+    };
+  }, [found, memory, state.player, state.diaryFound, state.shrineFound]);
+
+  // Things you say on a call change how she feels about you, for good
+  useEffect(() => {
+    const change = state.call?.affection;
+    if (!change || change.delta === 0) return;
+    setMemory((m) => { const next = adjustAffection(m, change.delta); saveMemory(next); return next; });
+  }, [state.call?.affection.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight);
@@ -354,21 +382,29 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
     return () => clearTimeout(t);
   }, [state.fx?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Paranoia: every 20-40 moves something on screen lies to you
-  const [paranoia, setParanoia] = useState<{ text: string; fake: { x: number; y: number } | null } | null>(null);
-  const nextScare = useRef(20 + Math.floor(Math.random() * 21));
+  // Paranoia: every 8-15 moves something on screen lies to you, cycling through the warnings in a shuffled order
+  const [paranoia, setParanoia] = useState<{ id: number; text: string; fake: { x: number; y: number } | null } | null>(null);
+  const nextScare = useRef(8 + Math.floor(Math.random() * 8));
+  const warnings = useRef<string[]>([]);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
   const paranoid = hasPerk(state.player, "paranoia");
   useEffect(() => {
-    if (!paranoid || !state.player || state.turnCount < nextScare.current) return;
-    nextScare.current = state.turnCount + 20 + Math.floor(Math.random() * 21);
+    if (!paranoid || !state.player) return;
+    if (state.turnCount < nextScare.current - 40) nextScare.current = state.turnCount + 8; // a new run restarted the turn count
+    if (state.turnCount < nextScare.current) return;
+    nextScare.current = state.turnCount + 8 + Math.floor(Math.random() * 8);
+    if (warnings.current.length === 0) warnings.current = [...PARANOIA_WARNINGS].sort(() => Math.random() - 0.5);
     const p = state.player;
     const angle = Math.random() * Math.PI * 2;
     const fake = Math.random() < 0.5 ? { x: Math.round(p.x + Math.cos(angle) * 6), y: Math.round(p.y + Math.sin(angle) * 4) } : null;
-    setParanoia({ text: PARANOIA_WARNINGS[Math.floor(Math.random() * PARANOIA_WARNINGS.length)], fake });
+    const text = warnings.current.pop()!; // outside the updater: StrictMode may run it twice
+    setParanoia((prev) => ({ id: (prev?.id ?? 0) + 1, text, fake }));
     play("warning");
-    const t = setTimeout(() => setParanoia(null), 1600);
-    return () => clearTimeout(t);
+    // not tied to the effect's cleanup: the next step must not cancel the hide
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setParanoia(null), 1600);
   }, [state.turnCount, paranoid]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
 
   // A clicked button that disappears (class pick, dialogue choice, shop) takes keyboard focus with it.
   // Take it back, but never from something the player clicked on purpose (leaderboard, inputs).
@@ -403,6 +439,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
           else if (key === "d" || key === "arrowright") dispatch({ type: "MOVE", dx: 1, dy: 0 });
           else if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
           else if (key === "x") dispatch({ type: "TOGGLE_STEALTH" });
+          else if (key === "c") dispatch({ type: "CALL_OPEN", ctx: chanContext() });
           break;
         case "COMBAT":
           if (key === "a") dispatch({ type: "ATTACK" });
@@ -456,7 +493,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
           break;
       }
     },
-    [state.mode, state.dialogueChoices, state.haggle, submitTyped]
+    [state.mode, state.dialogueChoices, state.haggle, submitTyped, chanContext]
   );
 
   const view = narrow ? VIEWPORT.narrow : VIEWPORT.wide;
@@ -477,7 +514,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
     >
       {fx && <div key={fx.id} className={`fx-flash fx-flash-${fx.kind}`} />}
       {paranoia && (
-        <div key={paranoia.text + state.turnCount} className="paranoia-banner absolute left-0 right-0 top-1/3 z-30 text-center text-destructive font-bold text-lg sm:text-2xl pointer-events-none px-4">
+        <div key={paranoia.id} className="paranoia-banner absolute left-0 right-0 top-1/3 z-30 text-center text-destructive font-bold text-lg sm:text-2xl pointer-events-none px-4">
           {paranoia.text}
         </div>
       )}
@@ -503,7 +540,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
         <div className="p-4 space-y-2">
           {state.mode === "CLASS_SELECT" && (
             <>
-              <ClassSelect flagsFound={flags.length} onSelect={(c) => dispatch({ type: "SELECT_CLASS", className: c, flagsFound: flags.length })} />
+              <ClassSelect flagsFound={flags.length} onSelect={(c) => dispatch({ type: "SELECT_CLASS", className: c, flagsFound: flags.length, affection: memory.affection })} />
               <CosmeticsPicker found={found} choice={cosmetics} onChange={updateCosmetics} />
               <IswChanMemoryPanel memory={memory} onChange={setMemory} />
             </>
@@ -511,13 +548,19 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
 
           {state.mode === "TALK" && state.talk && <TalkPanel state={state} dispatch={dispatch} narrow={narrow} />}
 
+          {state.mode === "ENDING" && state.ending && <EndingPanel state={state} dispatch={dispatch} />}
+
+          {(state.mode === "CALL" || (state.mode === "GAME_OVER" && state.call?.convo.kicked)) && state.call && (
+            <CallPanel call={state.call} over={state.mode === "GAME_OVER"} onSay={(text) => dispatch({ type: "CALL_SAY", text, ctx: chanContext() })} onHangUp={() => dispatch({ type: "CALL_HANGUP", ctx: chanContext() })} />
+          )}
+
           {state.mode === "PERK" && state.perkChoices && (
             <PerkPanel choices={state.perkChoices} onPick={(index) => dispatch({ type: "PICK_PERK", index })} />
           )}
 
           {mapLines.length > 0 && (
-            <div>
-              <pre className="text-foreground leading-none tracking-widest text-[11px] select-none overflow-hidden">
+            <div className="flex flex-col items-center">
+              <pre className="text-foreground leading-none tracking-widest text-[11px] select-none overflow-hidden max-w-full">
                 {mapLines.map((line, i) => (
                   <div key={i}>
                     {[...line].map((ch, j) => (
@@ -531,8 +574,11 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
           )}
 
           {state.player && (
-            <div className="text-primary text-glow text-[10px] border-t border-border pt-1 space-y-0.5">
-              {hudLines.map((line, i) => <div key={i}>{line}</div>)}
+            <div className="flex items-start gap-2 border-t border-border pt-1">
+              <div className="text-primary text-glow text-[10px] space-y-0.5 min-w-0 flex-1">
+                {hudLines.map((line, i) => <div key={i}>{line}</div>)}
+              </div>
+              {!state.talk && <IswChanCam state={state} />}
             </div>
           )}
 
@@ -600,7 +646,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
 
           {/* Controls hint (desktop) */}
           <div className="text-muted-foreground text-[9px] border-t border-border pt-1 hidden md:block">
-            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles, $ to shop, U to upload flags"}
+            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles, $ to shop, U to upload flags | C: Call ISW-Chan"}
             {state.mode === "COMBAT" && "A: Attack | Q/1: Special (QTE) | 2-3: Skills | 4-9: Items | F: Flee"}
             {state.mode === "QTE" && "Quick-time event! Follow the prompt."}
             {state.mode === "SHOP" && !state.haggle && "1-6: Buy | H: Haggle | Esc: Leave"}

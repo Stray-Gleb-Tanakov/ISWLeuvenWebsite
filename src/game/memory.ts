@@ -13,6 +13,7 @@ export interface IswChanMemory {
   runs: number;
   wins: number;
   shrine: boolean;   // found her shrine at least once
+  diary: number[];   // diary pages found, by floor (diary.ts)
   affection: number; // 0..AFFECTION_CAP in normal play
   sig: string;
 }
@@ -23,7 +24,7 @@ const CONFESSION = "KDUxHlAwWDtdJTkuVjErJFwjUTQ/GA==";
 
 /* FNV-1a over the fields, salted with her favourite word */
 export function signMemory(m: Omit<IswChanMemory, "sig">): string {
-  const text = `mainframe|${m.v}|${m.runs}|${m.wins}|${m.shrine ? 1 : 0}|${m.affection}`;
+  const text = `mainframe|${m.v}|${m.runs}|${m.wins}|${m.shrine ? 1 : 0}|${m.affection}|${m.diary.join(",")}`;
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     h ^= text.charCodeAt(i);
@@ -33,14 +34,14 @@ export function signMemory(m: Omit<IswChanMemory, "sig">): string {
 }
 
 export function freshMemory(): IswChanMemory {
-  const m = { v: 1 as const, runs: 0, wins: 0, shrine: false, affection: 0 };
+  const m = { v: 1 as const, runs: 0, wins: 0, shrine: false, diary: [] as number[], affection: 0 };
   return { ...m, sig: signMemory(m) };
 }
 
 export function loadMemory(): IswChanMemory {
   try {
     const m = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-    return m && m.sig === signMemory(m) ? m : freshMemory();
+    return m && Array.isArray(m.diary) && m.sig === signMemory(m) ? m : freshMemory();
   } catch {
     return freshMemory();
   }
@@ -51,15 +52,25 @@ export function saveMemory(m: IswChanMemory) {
 }
 
 /* A finished run: she warms up slowly, and never past the cap */
-export function recordRun(m: IswChanMemory, run: { won: boolean; shrine: boolean }): IswChanMemory {
+export function recordRun(m: IswChanMemory, run: { won: boolean; shrine: boolean; diary?: number[] }): IswChanMemory {
   const gain = (run.won ? 6 : 2) + (run.shrine && !m.shrine ? 10 : 0);
   const next = {
     v: 1 as const,
     runs: m.runs + 1,
     wins: m.wins + (run.won ? 1 : 0),
     shrine: m.shrine || run.shrine,
+    diary: [...new Set([...m.diary, ...(run.diary ?? [])])].sort((a, b) => a - b),
     affection: Math.max(m.affection, Math.min(AFFECTION_CAP, m.affection + gain)), // an edited memory stays edited
   };
+  return { ...next, sig: signMemory(next) };
+}
+
+/* Something you said changed her mind about you (calls, console). Talking never gets her past the cap. */
+export function adjustAffection(m: IswChanMemory, delta: number): IswChanMemory {
+  if (delta === 0) return m;
+  const affection = delta < 0 ? Math.max(0, m.affection + delta) : m.affection > AFFECTION_CAP ? m.affection : Math.min(AFFECTION_CAP, m.affection + delta);
+  const { sig: _, ...rest } = m;
+  const next = { ...rest, affection };
   return { ...next, sig: signMemory(next) };
 }
 
@@ -76,7 +87,8 @@ export function importMemory(dump: string): ImportResult {
   } catch {
     return { ok: false, line: "That's not a memory. That's noise." };
   }
-  if (!m || typeof m !== "object" || m.v !== 1 || ![m.runs, m.wins, m.affection].every(Number.isInteger) || typeof m.shrine !== "boolean") {
+  if (!m || typeof m !== "object" || m.v !== 1 || ![m.runs, m.wins, m.affection].every(Number.isInteger) || typeof m.shrine !== "boolean"
+    || !Array.isArray(m.diary) || !m.diary.every((d) => Number.isInteger(d) && d >= 0 && d < 6)) {
     return { ok: false, line: "Half of that is missing. Did you chew on it?" };
   }
   if (m.sig !== signMemory(m)) {

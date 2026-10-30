@@ -2,6 +2,9 @@
    CYBERPUNK TERMINAL RPG — Type Definitions
    ==================================================== */
 
+import type { EndingState, EndingId } from "./ending";
+import type { Convo, ChanContext } from "./chanconvo";
+
 export type GameMode =
   | "CLASS_SELECT"
   | "EXPLORE"
@@ -16,7 +19,9 @@ export type GameMode =
   | "SHOP"
   | "UPLINK"    // terminal where hidden website flags are entered
   | "PERK"      // level-up: pick 1 of 3 perks
-  | "TALK";     // Social Engineer: text-adventure mode
+  | "TALK"      // Social Engineer: text-adventure mode
+  | "ENDING"    // secret ending: ISW-Chan after NEXUS falls (ending.ts)
+  | "CALL";     // a call with ISW-Chan (C while exploring, chanconvo.ts)
 
 export type ClassName = "Netrunner" | "Cyborg" | "Ghost" | "Sysadmin" | "Script Kiddie" | "Social Engineer";
 
@@ -104,7 +109,7 @@ export interface Item {
   id: string;
   name: string;
   description: string;
-  type: "heal" | "weapon" | "keycard" | "emp" | "armor" | "mana" | "antidote";
+  type: "heal" | "weapon" | "keycard" | "emp" | "armor" | "mana" | "antidote" | "diary";
   value: number;
 }
 
@@ -265,10 +270,26 @@ export interface GameState {
   fx: { kind: FxKind; id: number } | null;
   talk: TalkState | null;
   shrineFound?: boolean;          // walked into ISW-Chan's hollow wall this run
+  iswAffection?: number;          // her affection from the memory panel, fixed for the run
+  iswHelpedFloor?: number;        // attached mood: the floor she last healed you on
+  ending?: EndingState | null;     // the secret ending conversation
+  endingId?: EndingId;             // which secret ending this run got
+  diaryFound?: number[];           // ISW-Chan diary pages picked up this run (by floor)
+  call?: ChanCall | null;          // the current call with ISW-Chan
+}
+
+export interface ChanCall {
+  convo: Convo;
+  said: { who: "you" | "her"; text: string }[];
+  affection: { delta: number; id: number }; // her latest change of heart, for the memory panel to apply
 }
 
 export type GameAction =
-  | { type: "SELECT_CLASS"; className: ClassName; flagsFound?: number }
+  | { type: "SELECT_CLASS"; className: ClassName; flagsFound?: number; affection?: number }
+  | { type: "ENDING_SAY"; text: string }
+  | { type: "CALL_OPEN"; ctx: ChanContext }
+  | { type: "CALL_SAY"; text: string; ctx: ChanContext }
+  | { type: "CALL_HANGUP"; ctx: ChanContext }
   | { type: "MOVE"; dx: number; dy: number }
   | { type: "ATTACK" }
   | { type: "SPECIAL" }

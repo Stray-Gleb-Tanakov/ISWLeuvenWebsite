@@ -80,7 +80,7 @@ const INTENT_WORDS: [Intent, string[]][] = [
   ["flatter", [
     "nice", "cool", "great", "love", "beautiful", "awesome", "handsome", "respect", "good job", "hard work", "cute", "smart",
     "amazing", "impressive", "brilliant", "legend", "genius", "lovely", "gorgeous", "wonderful", "fantastic", "well done",
-    "appreciate", "mooi", "knap", "schattig", "slim", "goed bezig",
+    "appreciate", "the best", "adorable", "mooi", "knap", "schattig", "slim", "goed bezig",
   ]],
   ["greet", [
     "hi", "hello", "hey", "yo", "sup", "hallo", "dag", "evening", "morning", "howdy", "greetings", "good evening",
