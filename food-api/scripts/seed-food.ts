@@ -4,7 +4,7 @@
 //   kubectl -n iswleuven exec deploy/food-api -- npm run seed:food
 // After the first seed, the database is the source of truth: edit prices there.
 import { readFile } from "node:fs/promises";
-import { db, migrate } from "../src/db.ts";
+import { db, migrate } from "../src/db.js";
 
 type FoodItemInput = { slug: string; name: string; nonMember: number | null; member: number | null; available: boolean };
 type FoodCategoryInput = { id: string; title: string; emoji: string; items: FoodItemInput[] };

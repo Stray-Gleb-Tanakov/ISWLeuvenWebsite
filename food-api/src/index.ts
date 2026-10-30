@@ -1,8 +1,8 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { RowDataPacket } from "mysql2";
-import { db, migrate } from "./db.ts";
-import { scores } from "./scores.ts";
+import { db, migrate } from "./db.js";
+import { scores } from "./scores.js";
 
 const app = new Hono().basePath("/api");
 
@@ -44,4 +44,4 @@ app.route("/scores", scores);
 
 await migrate();
 const port = Number(process.env.PORT ?? 3000);
-serve({ fetch: app.fetch, port }, () => console.log(`food-api listening on :${port}`));
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => console.log(`food-api listening on :${port}`));

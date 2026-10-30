@@ -6,9 +6,11 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "start": "node src/index.ts",
+    "build": "tsc -p tsconfig.json && npm run copy:assets",
+    "copy:assets": "mkdir -p dist/sql dist/data && cp -R sql/. dist/sql/ && cp -R data/. dist/data/",
+    "start": "node dist/src/index.js",
     "dev": "node --watch src/index.ts",
-    "seed:food": "node scripts/seed-food.ts",
+    "seed:food": "node dist/scripts/seed-food.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
