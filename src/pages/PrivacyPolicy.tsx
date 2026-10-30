@@ -1,11 +1,38 @@
 import PageLayout from "../components/PageLayout";
+import BackButton from "@/components/BackButton";
+import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
+import { xorReveal } from "@/game/flags";
+
+/* Mini CTF: "Paper Trail". The last clause only exists while the page is being printed */
+const PAPER_CLAUSE = "OTInHiIiUD4xQTQ+QCstNFJEIS0kM0NWIQ0=";
+
+function usePrinting(): boolean {
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    // the print snapshot is taken right after beforeprint, so render synchronously
+    const on = () => flushSync(() => setPrinting(true)), off = () => setPrinting(false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
+  }, []);
+  return printing;
+}
 
 const PrivacyPolicy = () => {
+  const printing = usePrinting();
   return (
-    <PageLayout
-      title="Privacy Policy"
-      subtitle="How ISW handles your personal data"
-    >
+    <PageLayout>
+      <div className="py-8 sm:py-16 px-4">
+      <div className="container-terminal">
+      <header className="mb-8">
+        <BackButton />
+        <h1 className="text-xl sm:text-2xl text-primary text-glow mt-4">
+          <span className="text-muted-foreground">user@iswleuven:~$</span> cat ./privacy_policy
+        </h1>
+        <p className="text-muted-foreground text-sm mt-2"># How ISW handles your personal data</p>
+        <div className="h-px bg-border w-full mt-4" />
+      </header>
       <article className="mx-auto max-w-4xl space-y-10">
         <div className="border border-green-500/40 bg-black/30 p-4 font-mono text-sm text-green-300">
           <p>
@@ -322,7 +349,16 @@ const PrivacyPolicy = () => {
           </p>
           <p className="mt-1">active // last reviewed 24-09-2026</p>
         </div>
+        {printing && (
+          <section className="border border-dashed border-green-500/60 p-4 font-mono text-sm">
+            <p>§ 99. Printed copies</p>
+            <p className="mt-2">You actually printed this. ISW-Chan is impressed, and a little worried about the trees.</p>
+            <p className="mt-2">{xorReveal(PAPER_CLAUSE, "paper")}</p>
+          </section>
+        )}
       </article>
+      </div>
+      </div>
     </PageLayout>
   );
 };

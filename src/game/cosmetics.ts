@@ -20,6 +20,11 @@ export const THEMES: Theme[] = [
   { id: "amber", name: "Amber CRT", requires: "source" },
   { id: "ice", name: "Ice Blue", requires: "robots" },
   { id: "vapor", name: "Vaporwave", requires: "zerowidth" },
+  { id: "cookie", name: "Cookie Dough", requires: "cookie" },
+  { id: "gold", name: "Forged Gold", requires: "token" },
+  { id: "spectrum", name: "Spectrogram", requires: "spectro" },
+  { id: "debug", name: "Debug Blue", requires: "debug" },
+  { id: "leet", name: "13:37 Mint", requires: "timelock" },
   { id: "chan", name: "ISW-Chan Pink", requires: "all" },
 ];
 
@@ -36,7 +41,7 @@ export const DEATH_TEXTS: DeathText[] = [
   { id: "segfault", text: "SEGMENTATION FAULT (CORE DUMPED)", requires: "console" },
 ];
 
-/* 7 titles: one per flag, one for all of them. Keep in sync with food-api/src/scores.ts */
+/* One title per flag, plus one for all of them. Keep in sync with food-api/src/scores.ts */
 export const BADGES: Badge[] = [
   { id: "source", title: "◆ Source Reader", requires: "source" },
   { id: "console", title: "◆ Console Cowboy", requires: "console" },
@@ -44,6 +49,19 @@ export const BADGES: Badge[] = [
   { id: "header", title: "◆ Header Hunter", requires: "header" },
   { id: "zerowidth", title: "◆ Invisible Ink", requires: "zerowidth" },
   { id: "lost", title: "◆ Basement Dweller", requires: "lost" },
+  { id: "cookie", title: "◆ Cookie Monster", requires: "cookie" },
+  { id: "token", title: "◆ Forged Papers", requires: "token" },
+  { id: "spectro", title: "◆ Tone Deaf", requires: "spectro" },
+  { id: "debug", title: "◆ God Mode", requires: "debug" },
+  { id: "timelock", title: "◆ Leet O'Clock", requires: "timelock" },
+  { id: "git", title: "◆ Git Archaeologist", requires: "git" },
+  { id: "zip", title: "◆ Zip Cracker", requires: "zip" },
+  { id: "sourcemap", title: "◆ Cartographer", requires: "sourcemap" },
+  { id: "print", title: "◆ Paper Trail", requires: "print" },
+  { id: "morse", title: "◆ Morse Whisperer", requires: "morse" },
+  { id: "alttext", title: "◆ Screen Reader", requires: "alttext" },
+  { id: "shrine", title: "◆ Wall Hugger", requires: "shrine" },
+  { id: "memory", title: "◆ Memory Editor", requires: "memory" },
   { id: "all", title: "★ ISW-Chan's Favourite", requires: "all" },
 ];
 

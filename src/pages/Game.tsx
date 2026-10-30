@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
 import GameTerminal from "@/components/GameTerminal";
@@ -8,6 +9,7 @@ import { useFoundFlags } from "@/hooks/UseFoundFlags";
 const Game = () => {
   const { found, submit } = useFoundFlags();
   const [leaderboardKey, setLeaderboardKey] = useState(0);
+  const konami = (useLocation().state as { konami?: boolean } | null)?.konami;
 
   return (
     <PageLayout>
@@ -21,6 +23,9 @@ const Game = () => {
         <p className="text-muted-foreground text-xs font-mono mb-3">
           // A cyberpunk terminal RPG — escape the corrupted mainframe
         </p>
+        {konami && (
+          <p className="text-pink-400 text-xs font-mono mb-3">[ISW-Chan] ↑↑↓↓←→←→BA? Cheat codes don't work in MY mainframe. ...Come in anyway.</p>
+        )}
         <div className="w-full max-w-5xl">
           <GameTerminal found={found} onSubmitFlag={submit} onScoreSubmitted={() => setLeaderboardKey((k) => k + 1)} />
         </div>

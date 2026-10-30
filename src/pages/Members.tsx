@@ -1,8 +1,20 @@
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
 import { memberIntro } from "@/data/site-data";
+import { xorReveal } from "@/game/flags";
 
-const Members = () => (
+const BOARD_NOTE = "KDc6Ei1RVCZYXT4pXSc9NVc/FA==";
+
+/* Mini CTF: the role cookie set in main.tsx, base64'd and trusted blindly */
+function readRole(): string {
+  const raw = document.cookie.split("; ").find((c) => c.startsWith("isw_role="))?.slice("isw_role=".length);
+  if (!raw) return "guest";
+  try { return atob(decodeURIComponent(raw)).trim(); } catch { return "corrupted"; }
+}
+
+const Members = () => {
+    const role = readRole();
+    return (
     <PageLayout>
         <div className="py-8 sm:py-16 px-4">
     <div className="container-terminal">
@@ -47,9 +59,31 @@ const Members = () => (
 </div>
 </section>
 
+{/* Session */}
+<section className="mb-12">
+<h2 className="text-lg text-primary mb-4">
+<span className="text-muted-foreground">$</span> whoami
+</h2>
+<div className="bg-card border border-border p-4 sm:p-6 font-mono text-sm">
+    <p className="text-foreground">{role}</p>
+    {role === "admin" ? (
+        <p className="text-primary text-glow mt-4">
+            # board_notes.txt<br />
+            - remember to stop trusting cookies<br />
+            - {xorReveal(BOARD_NOTE, role)}
+        </p>
+    ) : (
+        <p className="text-muted-foreground mt-4">
+            # board_notes.txt: permission denied ({role === "member" ? "members" : `"${role}"`} can't read this, admins only)
+        </p>
+    )}
+</div>
+</section>
+
 </div>
 </div>
 </PageLayout>
-);
+    );
+};
 
 export default Members;

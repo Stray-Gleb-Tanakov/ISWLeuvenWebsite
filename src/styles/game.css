@@ -4,7 +4,8 @@
    the game by overriding the design tokens locally.
    ============================================= */
 
-.game-theme-amber, .game-theme-ice, .game-theme-vapor, .game-theme-chan, .game-theme-blood {
+.game-theme-amber, .game-theme-ice, .game-theme-vapor, .game-theme-chan, .game-theme-blood,
+.game-theme-cookie, .game-theme-gold, .game-theme-spectrum, .game-theme-debug, .game-theme-leet {
   --foreground: var(--t-hue) 100% var(--t-light);
   --card-foreground: var(--t-hue) 100% var(--t-light);
   --primary: var(--t-hue) 100% var(--t-light);
@@ -21,6 +22,16 @@
 .game-theme-ice { --t-hue: 190; --t-light: 60%; }
 .game-theme-vapor { --t-hue: 295; --t-light: 70%; }
 .game-theme-chan { --t-hue: 330; --t-light: 70%; }
+.game-theme-cookie { --t-hue: 25; --t-light: 62%; }
+.game-theme-gold { --t-hue: 50; --t-light: 52%; }
+.game-theme-debug { --t-hue: 215; --t-light: 66%; }
+.game-theme-leet { --t-hue: 160; --t-light: 55%; }
+
+/* Spectrogram: sweeps through the colour map like a voicemail being analysed */
+@property --t-hue { syntax: "<number>"; inherits: true; initial-value: 120; }
+.game-theme-spectrum { --t-hue: 260; --t-light: 62%; animation: game-spectrum 24s linear infinite; }
+@keyframes game-spectrum { from { --t-hue: 260; } to { --t-hue: 620; } }
+@media (prefers-reduced-motion: reduce) { .game-theme-spectrum { animation: none; } }
 
 /* Vampiric Code: the mainframe bleeds */
 .game-theme-blood {

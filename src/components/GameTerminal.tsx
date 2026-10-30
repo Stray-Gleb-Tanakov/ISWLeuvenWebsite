@@ -16,6 +16,8 @@ import UplinkPanel from "@/components/UplinkPanel";
 import PerkPanel from "@/components/PerkPanel";
 import TalkPanel from "@/components/TalkPanel";
 import CosmeticsPicker from "@/components/CosmeticsPicker";
+import IswChanMemoryPanel from "@/components/IswChanMemoryPanel";
+import { loadMemory, recordRun, saveMemory } from "@/game/memory";
 import type { HiddenFlag } from "@/game/flags";
 import { ICONS, DEATH_TEXTS } from "@/game/cosmetics";
 import { PERKS, PARANOIA_WARNINGS, hasPerk } from "@/game/perks";
@@ -87,7 +89,7 @@ function renderMap(state: GameState, viewW: number, viewH: number, fake: { x: nu
 function renderHUD(state: GameState): string[] {
   if (!state.player) return [];
   const p = state.player;
-  const ac = 10 + Math.floor(p.stats.def / 2) + Math.floor(p.stats.spd / 4);
+  const ac = 10 + Math.floor(p.stats.def / 2) + Math.floor(p.stats.spd / 6);
   const lines = [
     `[${p.className}] LV:${p.level} HP:${p.stats.hp}/${p.stats.maxHp} MP:${p.stats.mp}/${p.stats.maxMp} AC:${ac} 💰${p.credits}`,
     FLOOR_NAMES[p.floor],
@@ -301,6 +303,7 @@ function charColor(ch: string): string {
   if (ch === "U") return "text-cyan-300 font-bold";
   if (ch === ">") return "text-primary";
   if (ch === "█") return "text-border";
+  if (ch === "▓") return "text-border"; // ISW-Chan's hollow wall: same colour, different texture
   if (ch === "░") return "text-muted-foreground/20";
   return "text-muted-foreground/40";
 }
@@ -324,6 +327,18 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
   const containerRef = useRef<HTMLDivElement>(null);
   const { cosmetics, update: updateCosmetics } = useCosmetics(found);
   const [muted, setMutedState] = useState(isMuted);
+
+  // ISW-Chan remembers every finished run (once per run)
+  const [memory, setMemory] = useState(loadMemory);
+  const over = state.mode === "GAME_OVER" || state.mode === "WIN";
+  useEffect(() => {
+    if (!over) return;
+    setMemory((m) => {
+      const next = recordRun(m, { won: state.mode === "WIN", shrine: !!state.shrineFound });
+      saveMemory(next);
+      return next;
+    });
+  }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight);
@@ -490,6 +505,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
             <>
               <ClassSelect flagsFound={flags.length} onSelect={(c) => dispatch({ type: "SELECT_CLASS", className: c, flagsFound: flags.length })} />
               <CosmeticsPicker found={found} choice={cosmetics} onChange={updateCosmetics} />
+              <IswChanMemoryPanel memory={memory} onChange={setMemory} />
             </>
           )}
 

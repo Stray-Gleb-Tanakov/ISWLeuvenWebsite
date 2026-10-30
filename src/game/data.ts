@@ -14,7 +14,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   Netrunner: {
     desc: "High INT hacker. Weak body, devastating exploits.",
     special: "ICE Breaker — HACK QTE: type the code fast (up to 3x INT, ignores DEF)",
-    stats: { maxHp: 120, hp: 120, maxMp: 200, mp: 200, atk: 5, def: 2, spd: 8, int: 16 },
+    stats: { maxHp: 150, hp: 150, maxMp: 200, mp: 200, atk: 5, def: 4, spd: 8, int: 16 },
     skills: [
       { name: "ICE Breaker", mpCost: 20, cooldown: 0, currentCooldown: 0, description: "2x INT pure damage" },
       { name: "Virus Upload", mpCost: 15, cooldown: 3, currentCooldown: 0, description: "Poisons enemy (3 turns)" },
@@ -34,7 +34,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   Ghost: {
     desc: "Invisible operative. Fast, lethal, fragile.",
     special: "Shadow Combo — ARROW QTE: repeat the sequence (more hits per arrow, bleed on perfect)",
-    stats: { maxHp: 150, hp: 150, maxMp: 120, mp: 120, atk: 15, def: 6, spd: 18, int: 9 },
+    stats: { maxHp: 120, hp: 120, maxMp: 120, mp: 120, atk: 13, def: 4, spd: 18, int: 9 },
     skills: [
       { name: "Shadow Combo", mpCost: 18, cooldown: 0, currentCooldown: 0, description: "Arrow QTE combo, bleed on perfect" },
       { name: "Smoke Bomb", mpCost: 12, cooldown: 3, currentCooldown: 0, description: "Guaranteed flee + stealth" },
@@ -54,7 +54,7 @@ export const CLASS_DATA: Record<ClassName, { desc: string; stats: Stats; special
   "Script Kiddie": {
     desc: "Never wrote a line of code. Copies everyone else's. Somehow it works.",
     special: "Copy-Paste Exploit — a random other class's QTE every time",
-    stats: { maxHp: 115, hp: 115, maxMp: 130, mp: 130, atk: 11, def: 4, spd: 11, int: 11 },
+    stats: { maxHp: 130, hp: 130, maxMp: 130, mp: 130, atk: 11, def: 5, spd: 11, int: 11 },
     skills: [
       { name: "Copy-Paste Exploit", mpCost: 15, cooldown: 0, currentCooldown: 0, description: "Random class QTE + its effect" },
       { name: "Google It", mpCost: 10, cooldown: 3, currentCooldown: 0, description: "Random: heal, big hit or stun" },
@@ -121,7 +121,7 @@ const FLOOR_2 = [
   "#....W.....#..........E......T........#",
   "#..A.......#..........................#",
   "#..........#........................>.#",
-  "########################################",
+  "#####▓##################################", // ▓: ISW-Chan's shrine, a hollow wall (Mini CTF "The Shrine")
 ];
 
 const FLOOR_3 = [
@@ -1204,7 +1204,7 @@ export function parseFloor(floor: number, seed?: number) {
     return cleaned;
   });
 
-  return { cleanMap, enemies, npcs, groundItems, doors, puzzles, traps, merchants, uplinks, playerStart };
+  return { cleanMap, enemies: enemies.map(tuneEnemy), npcs, groundItems, doors, puzzles, traps, merchants, uplinks, playerStart };
 }
 
 /* ----- Floor names ----- */
@@ -1227,16 +1227,40 @@ export function makeLeech(floor: number, x: number, y: number, id: string): Enem
   };
 }
 
+/* ----- Difficulty: applied to every enemy when it's created.
+   Tuned with the fight simulator in balance.ts (balance.test.ts keeps it honest).
+   `perFloor` makes deeper enemies tougher on top of their templates. */
+export const ENEMY_TUNING = {
+  hp: 2.3, atk: 1.4, ac: 1,          // regular enemies
+  bossHp: 2.5, bossAtk: 1.3, bossAc: 2, // mini-bosses and the final boss
+  final: 1,                          // extra hp/atk multiplier for the final boss (on top of boss*)
+  perFloor: 0,                       // extra hp/atk per floor; templates already scale, keep at 0
+  damage: 1.0,                       // multiplier on every enemy hit
+};
+
+export function tuneEnemy(e: Enemy): Enemy {
+  const t = ENEMY_TUNING;
+  const depth = (1 + t.perFloor * e.floor) * (e.id.startsWith("boss-") ? t.final : 1);
+  const hpMult = (e.isBoss ? t.bossHp : t.hp) * depth;
+  const atkMult = (e.isBoss ? t.bossAtk : t.atk) * depth;
+  const maxHp = Math.round(e.stats.maxHp * hpMult);
+  return {
+    ...e,
+    stats: { ...e.stats, maxHp, hp: maxHp, atk: Math.round(e.stats.atk * atkMult) },
+    ac: e.ac + (e.isBoss ? t.bossAc : t.ac),
+  };
+}
+
 /* ----- Random spawn helper ----- */
 export function createRandomEnemy(floor: number, x: number, y: number, idSuffix: string): Enemy {
   if (Math.random() < 0.15) return makeLeech(floor, x, y, `spawn-${floor}-${idSuffix}`);
   const templates = ENEMY_TEMPLATES[floor] || ENEMY_TEMPLATES[0];
   const tmpl = templates[Math.floor(Math.random() * templates.length)];
-  return {
+  return tuneEnemy({
     id: `spawn-${floor}-${idSuffix}`, name: tmpl.name, symbol: "E",
     stats: { ...tmpl.stats }, xpReward: tmpl.xp, alive: true,
     x, y, floor, loot: tmpl.loot, ac: tmpl.ac,
     statusEffects: [], onHitEffect: tmpl.onHitEffect,
-  };
+  });
 }
 

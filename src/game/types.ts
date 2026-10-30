@@ -264,6 +264,7 @@ export interface GameState {
   perkChoices: PerkId[] | null;
   fx: { kind: FxKind; id: number } | null;
   talk: TalkState | null;
+  shrineFound?: boolean;          // walked into ISW-Chan's hollow wall this run
 }
 
 export type GameAction =

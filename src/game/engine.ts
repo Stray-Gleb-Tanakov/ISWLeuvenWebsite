@@ -5,15 +5,28 @@
    ==================================================== */
 
 import type { GameState, GameAction, Player, Enemy, StatusEffect, Qte, QteResult, QteKind, PuzzleType, FxKind } from "./types";
-import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine, TRAP_DATA, createPuzzle, makeLeech } from "./data";
+import { CLASS_DATA, parseFloor, FLOOR_MAPS, FLOOR_NAMES, createRandomEnemy, getAnnoyedLine, TRAP_DATA, createPuzzle, makeLeech, ENEMY_TUNING } from "./data";
 import { CLASS_QTE, COPYABLE_QTES, createQte, rmEgg, type QteMods } from "./qte";
 import { SHOP_STOCK, SHOPKEEPERS, shopPrice, creditDrop, terminalCredits, createHaggle, greetingLine, line } from "./merchant";
 import { PERKS, applyPerk, hasPerk, rollPerkChoices } from "./perks";
 import { taunt, type TauntKind } from "./iswchan";
 import { startTalk, talkReducer } from "./talk";
+import { xorReveal } from "./flags";
+
+/* Mini CTF: "Dev Mode". A leftover dev backdoor at the flag uplink; the command
+   only exists here as char codes, and it is also the key to its flag. */
+/* Mini CTF: "The Shrine". Floor 2 has one worn wall (▓) that you can walk into */
+const SHRINE_WALL = "▓";
+const SHRINE_NOTE = "OjslEj0tIVk8WjEnQCBDJyo6JyBBNjlRPyQP";
+const SHRINE_LINES = [
+  "The wall gives way. You squeeze into a hollow behind it.",
+  "Candles made of status LEDs. A shrine. A printed photo of a server rack with a heart drawn on it.",
+  "A sticky note, in very neat handwriting: \"MAINFRAME: day 1. they unplugged me. i stayed.\"",
+];
+
+const DEV_BACKDOOR = { cmd: [115, 117, 100, 111, 32, 105, 100, 100, 113, 100], notes: "OiYzFBEtIDU1OzdGMjBtWSBXDA==" };
 
 /* ----- Difficulty knobs (combat only, puzzles are untouched) ----- */
-const ENEMY_DAMAGE_MULT = 0.8;   // enemies hit 20% softer
 const STATUS_CHANCE = 0.25;      // chance an enemy hit applies its status effect
 const STAIRS_RESTORE = 0.3;      // fraction of max HP/MP restored when descending
 const LEVEL_UP_HEAL = 0.5;       // fraction of max HP restored on level up
@@ -264,7 +277,8 @@ function enemyAttackRoll(enemy: Enemy, player: Player, brace: QteResult | null):
   const roll = rollD20();
   const mod = getHitMod(enemy.stats.atk);
   const total = roll + mod;
-  const playerAC = 10 + Math.floor(player.stats.def / 2) + Math.floor(player.stats.spd / 4);
+  // speed helps a little (spd/6): at spd/4 the fastest class was also nearly unhittable
+  const playerAC = 10 + Math.floor(player.stats.def / 2) + Math.floor(player.stats.spd / 6);
   const msgs: string[] = [];
 
   msgs.push(`${enemy.name} rolls: d20(${roll}) + ${mod} = ${total} vs your AC ${playerAC}`);
@@ -289,7 +303,7 @@ function enemyAttackRoll(enemy: Enemy, player: Player, brace: QteResult | null):
       msgs.push(stolen > 0 ? `🦠 ${enemy.name} siphons ${stolen} credits! (carrying ${enemy.stolen})` : `🦠 ${enemy.name} finds your wallet empty.`);
       return { player: { ...player, credits: player.credits - stolen }, msgs };
     }
-    let damage = Math.max(1, Math.floor((enemy.stats.atk - Math.floor(player.stats.def / 3)) * ENEMY_DAMAGE_MULT));
+    let damage = Math.max(1, Math.floor((enemy.stats.atk - Math.floor(player.stats.def / 3)) * ENEMY_TUNING.damage));
     if (crit) damage = damage * 2;
     if (brace === "good") damage = Math.ceil(damage / 2);
     msgs.push(
@@ -297,7 +311,7 @@ function enemyAttackRoll(enemy: Enemy, player: Player, brace: QteResult | null):
     );
     const p = { ...player, stats: { ...player.stats } };
     if (p.drone) {
-      const soaked = Math.min(p.drone.hp, damage);
+      const soaked = Math.min(p.drone.hp, Math.ceil(damage / 2)); // it takes half the hit
       damage -= soaked;
       p.drone = p.drone.hp - soaked > 0 ? { ...p.drone, hp: p.drone.hp - soaked } : null;
       msgs.push(p.drone ? `🤖 Your drone soaks ${soaked} damage. [${p.drone.hp}/${p.drone.maxHp}]` : `🤖 Your drone soaks ${soaked} damage and is destroyed!`);
@@ -341,6 +355,7 @@ function isWalkable(state: GameState, x: number, y: number, floor: number): bool
 
 function isTileFree(state: GameState, x: number, y: number, floor: number): boolean {
   if (!isWalkable(state, x, y, floor)) return false;
+  if (state.maps[floor][y]?.[x] === SHRINE_WALL) return false; // only the player fits in the shrine
   if (state.player && state.player.x === x && state.player.y === y && state.player.floor === floor) return false;
   if (state.enemies.some(e => e.x === x && e.y === y && e.floor === floor && e.alive)) return false;
   if (state.npcs.some(n => n.x === x && n.y === y && n.floor === floor)) return false;
@@ -571,7 +586,7 @@ function startLockdown(state: GameState, p: Player, enemy: Enemy, log: string[])
 /* End of the player's turn: enemy DoTs, death, lockdown, stun, otherwise the enemy attacks (sometimes with a Brace prompt) */
 function finishPlayerTurn(state: GameState, p: Player, enemy: Enemy, log: string[]): GameState {
   if (p.drone && enemy.stats.hp > 0) {
-    const zap = damageEnemy(enemy, Math.floor(p.stats.int * 0.5) + 1, [], p);
+    const zap = damageEnemy(enemy, Math.floor(p.stats.int * 0.35) + 1, [], p);
     log.push(`🤖 Drone zaps ${enemy.name} for ${zap}`);
   }
   const tick = tickStatusEffects(enemy.statusEffects);
@@ -655,7 +670,7 @@ function applySpecial(p: Player, enemy: Enemy, log: string[], qte: Qte, result: 
     }
     case "combo": {
       const hits = Math.round(accuracy * qte.prompt.length);
-      const dealt = damageEnemy(enemy, Math.floor(p.stats.atk * 1.2) + hits * Math.floor(p.stats.atk * 0.3), log, p);
+      const dealt = damageEnemy(enemy, Math.floor(p.stats.atk * 1.0) + hits * Math.floor(p.stats.atk * 0.25), log, p);
       log.push(`>> SHADOW COMBO ${hits}/${qte.prompt.length}${tag} — ${dealt} damage <<`);
       if (result === "perfect" && !hasStatus(enemy.statusEffects, "bleed")) {
         enemy.statusEffects = [...enemy.statusEffects, { type: "bleed", turnsLeft: 3, damage: 6 }];
@@ -668,7 +683,7 @@ function applySpecial(p: Player, enemy: Enemy, log: string[], qte: Qte, result: 
         log.push(`>> Segmentation fault (core dumped). Nothing fixed.`);
         break;
       }
-      const maxHp = 20 + p.level * 6;
+      const maxHp = 12 + p.level * 4;
       if (!p.drone) {
         p.drone = { hp: maxHp, maxHp };
         log.push(`>> Fixed${tag}! 🤖 Drone deployed [${maxHp} HP]. It soaks hits and zaps enemies.`);
@@ -1010,6 +1025,14 @@ function reduce(state: GameState, action: GameAction): GameState {
         }
       }
 
+      // ISW-Chan's shrine
+      let shrineFound = state.shrineFound;
+      if (state.maps[p.floor][ny]?.[nx] === SHRINE_WALL) {
+        newLog = addLog({ ...state, log: newLog }, "", ...SHRINE_LINES,
+          `[ISW-Chan] ...you found it. Don't tell anyone. ${xorReveal(SHRINE_NOTE, "shrine")}`, "");
+        shrineFound = true;
+      }
+
       // Check for stairs
       const map = state.maps[p.floor];
       if (map[ny]?.[nx] === ">") {
@@ -1041,7 +1064,7 @@ function reduce(state: GameState, action: GameAction): GameState {
           traps: [...newTraps, ...parsed.traps],
           merchants: [...state.merchants, ...parsed.merchants],
           uplinks: [...state.uplinks, ...parsed.uplinks],
-          log: addLog({ ...state, log: newLog }, "", `>>> Descending to ${FLOOR_NAMES[nextFloor]} <<<`, ">> Checkpoint: 30% HP & MP restored <<", ...[taunt("floor", p.className)].filter((t): t is string => !!t), ""),
+          log: addLog({ ...state, log: newLog }, "", `>>> Descending to ${FLOOR_NAMES[nextFloor]} <<<`, ">> Checkpoint: 30% HP & MP restored <<", ...[nextFloor === 1 ? "[ISW-Chan] I hid something of mine in this floor's walls. Behind the worn one. ...Forget I said that." : taunt("floor", p.className)].filter((t): t is string => !!t), ""),
           turnCount: state.turnCount + 1,
         };
       }
@@ -1054,6 +1077,7 @@ function reduce(state: GameState, action: GameAction): GameState {
         traps: newTraps,
         log: newLog,
         turnCount: state.turnCount + 1,
+        shrineFound,
       };
 
       newState = moveEnemies(newState);
@@ -1394,6 +1418,13 @@ function reduce(state: GameState, action: GameAction): GameState {
     /* === FLAG UPLINK (the flag check is async, so the UI checks and reports here) === */
     case "UPLINK_RESULT": {
       if (state.mode !== "UPLINK") return state;
+      const devCmd = String.fromCharCode(...DEV_BACKDOOR.cmd);
+      if (!action.title && action.input.trim().toLowerCase() === devCmd) {
+        return {
+          ...state, puzzleInput: "",
+          log: addLog(state, "[dev] backdoor auth OK. god mode is not a thing anymore, stop asking.", `[dev] leftover note: ${xorReveal(DEV_BACKDOOR.notes, devCmd)}`, "[dev] (that's a flag. upload it.)"),
+        };
+      }
       const msg = action.title
         ? [`>>> FLAG ACCEPTED: ${action.title} <<<`, `${action.flagsFound} hidden flags uploaded.`, ...[taunt("uplink", state.player?.className)].filter((t): t is string => !!t)]
         : [`UPLINK REJECTED: "${action.input}" is not one of ours.`];

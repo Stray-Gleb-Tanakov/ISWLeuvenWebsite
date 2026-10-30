@@ -8,3 +8,8 @@ Most of it is gone. This note survived:
   > ISW{R0B0TS_C4NT_K33P_S3CR3TS}
 
 -- sysadmin
+
+Also grabbed before the wipe:
+  - site_2019.bundle         the old website repo (git clone it)
+  - board_archive_2019.zip   board minutes, password protected.
+                             The treasurer wrote the password down somewhere. Of course.

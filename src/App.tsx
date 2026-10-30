@@ -11,9 +11,12 @@ import Catgirls from "./pages/Catgirls";
 import Game from "./pages/Game";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Members from "@/pages/Members.tsx";
+import Board from "./pages/Board";
+import SiteSecrets from "./components/SiteSecrets";
 
 const App = () => (
   <BrowserRouter>
+    <SiteSecrets />
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/events" element={<Events />} />
@@ -28,6 +31,7 @@ const App = () => (
       <Route path="/mainframe_breach" element={<Game />} />
       <Route path="/privacypolicy" element={<PrivacyPolicy />} />
       <Route path="/members" element={<Members />} />
+      <Route path="/board" element={<Board />} />
     </Routes>
   </BrowserRouter>
 );
