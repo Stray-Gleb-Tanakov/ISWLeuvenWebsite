@@ -12,16 +12,6 @@ spec:
     requests:
       storage: 5Gi
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: food-db-secrets
-  namespace: iswleuven
-type: Opaque
-stringData:
-  MARIADB_ROOT_PASSWORD: "change-me-root-password"
-  MARIADB_PASSWORD: "change-me-foodapi-password"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,6 +21,8 @@ metadata:
     app: food-db
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: food-db
