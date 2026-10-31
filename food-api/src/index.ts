@@ -6,6 +6,28 @@ import { scores } from "./scores.ts";
 
 const app = new Hono().basePath("/api");
 
+const inventoryApiUrl = process.env.INVENTORY_API_URL;
+const inventoryApiToken = process.env.INVENTORY_API_TOKEN;
+
+const getInventoryFood = async () => {
+  if (!inventoryApiUrl || !inventoryApiToken) {
+    return null;
+  }
+
+  const response = await fetch(inventoryApiUrl, {
+    headers: {
+      "X-Integration-Token": inventoryApiToken,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Inventory catalogue request failed: ${response.status}`);
+  }
+
+  return response.json();
+};
+
 app.onError((err, c) => {
   console.error(err);
   return c.json({ error: "Internal server error" }, 500);
@@ -20,14 +42,18 @@ app.get("/health", async (c) => {
 // ---- Food (/lokaal) ----
 
 app.get("/food", async (c) => {
+  const inventoryFood = await getInventoryFood();
+
+  if (inventoryFood) {
+    c.header("Cache-Control", "public, max-age=30");
+    return c.json(inventoryFood);
+  }
+
   const [cats] = await db.query<RowDataPacket[]>(
     "SELECT id, title, emoji FROM food_categories ORDER BY sort_order, title",
   );
   const [items] = await db.query<RowDataPacket[]>(
-    `SELECT slug AS id, category_id, name,
-            price_non_member_cents AS priceNonMember, price_member_cents AS priceMember,
-            amount, available AND (amount IS NULL OR amount > 0) AS available
-     FROM food_items ORDER BY sort_order, name`,
+    `SELECT slug AS id, category_id, name,\n            price_non_member_cents AS priceNonMember, price_member_cents AS priceMember,\n            amount, available AND (amount IS NULL OR amount > 0) AS available\n     FROM food_items ORDER BY sort_order, name`,
   );
   c.header("Cache-Control", "public, max-age=30");
   return c.json(
