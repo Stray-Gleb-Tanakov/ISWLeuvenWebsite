@@ -9,7 +9,8 @@ const BOARD_NOTE = "KDc6Ei1RVCZYXT4pXSc9NVc/FA==";
 function readRole(): string {
   const raw = document.cookie.split("; ").find((c) => c.startsWith("isw_role="))?.slice("isw_role=".length);
   if (!raw) return "guest";
-  try { return atob(decodeURIComponent(raw)).trim(); } catch { return "corrupted"; }
+  // cookie values may legally be quoted; the role itself is case-insensitive
+  try { return atob(decodeURIComponent(raw).replace(/^"(.*)"$/, "$1")).trim().toLowerCase(); } catch { return "corrupted"; }
 }
 
 const Members = () => {

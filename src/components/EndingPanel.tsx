@@ -11,7 +11,7 @@ const EndingPanel = ({ state, dispatch }: { state: GameState; dispatch: React.Di
   const [input, setInput] = useState("");
   const logRef = useRef<HTMLDivElement>(null);
   const ending = state.ending!;
-  const face: [IswEyes, IswMouth] = ending.done ? ENDING_FACE[ending.done] : ending.askedComeBack ? ["sad", "frown"] : ["open", "neutral"];
+  const face: [IswEyes, IswMouth] = ending.done ? ENDING_FACE[ending.done] : ending.rude ? ["angry", "frown"] : ending.askedComeBack ? ["sad", "frown"] : ["open", "neutral"];
 
   useEffect(() => {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight);
@@ -37,6 +37,9 @@ const EndingPanel = ({ state, dispatch }: { state: GameState; dispatch: React.Di
           </p>
         ))}
       </div>
+      {ending.kicked ? (
+        <p className="text-destructive font-bold">ISW-Chan threw you out of the mainframe. Press [R] to restart.</p>
+      ) : (
       <form onSubmit={submit} className="flex gap-2">
         <span className="text-primary self-center">&gt;</span>
         <input
@@ -51,6 +54,7 @@ const EndingPanel = ({ state, dispatch }: { state: GameState; dispatch: React.Di
         />
         <button type="submit" className="border border-border px-3 hover:border-pink-400 active:bg-pink-400/20 touch-manipulation">enter</button>
       </form>
+      )}
     </div>
   );
 };

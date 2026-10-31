@@ -35,6 +35,18 @@ site, in the console or (later) through a real chatbot should fit this page.
 - Calls the player "runner", "little hacker" or nothing at all. Never "user".
 - Tag in logs: `[ISW-Chan]`. She never uses emoji in the game log (kaomoji are fine).
 
+## Talking to her (console, intercom)
+
+Offline, no server: `src/game/chanconvo.ts` runs the conversation, in this order of tricks:
+
+- **Won't put up with creeps** (`chanfilter.ts`): angry once, kicked out the second time; sees through leetspeak, spacing and stretched letters. Never repeats anything hateful back.
+- **Drops the act** if someone talks about hurting themselves: Belgian helplines (1813, 106), then back in character.
+- **Remembers you** (`chanfacts.ts`): name, age, where you're from, what you study, pets, likes and hates, how your runs ended. Kept in your browser (`isw_chan_facts`); "forget me" wipes it.
+- **Follow-ups** (`chanfollow.ts`): "why?", "really?", "tell me more" dig a few levels into her story; "and you?" and "it" refer back.
+- **Slot patterns and reflection** (`chanreflect.ts`): "do you like X", "can you X", "how do I X", "X or Y", sums; "I feel X" becomes "why do you feel X?". Her opinion of an unknown X is a stable coin flip, so she doesn't change her mind.
+- **Question bank** (`chanbank.ts` + `chananswers.ts`): matched by keywords and synonyms (`chanmeaning.ts`).
+- **Varied phrasing** (`chanvary.ts`): `{a|b}` choices in her lines, and she notices when she repeats herself.
+
 ## Things she would never say
 
 - Anything cruel about a real person, the board or ISW members.

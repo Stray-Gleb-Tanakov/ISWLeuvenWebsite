@@ -7,6 +7,8 @@
 
 import { has, normalize, readInput } from "./parser";
 import { chanReply } from "./chanchat";
+import { KICK_RUDE } from "./chanconvo";
+import { isInappropriate } from "./chanfilter";
 import { xorReveal } from "./flags";
 import type { GameState } from "./types";
 
@@ -17,6 +19,8 @@ export interface EndingState {
   turns: number;
   askedComeBack: boolean; // you said you'd leave; she asked if you'll come back
   done: EndingId | null;
+  rude?: number;           // inappropriate messages so far
+  kicked?: boolean;        // ...and she threw you out for them
 }
 
 export const ENDING_AFFECTION = 40;
@@ -69,11 +73,19 @@ export function endingFlag(id: EndingId): string {
 
 /* What she says to what you typed, and whether that decided it */
 export function endingReply(e: EndingState, input: string): EndingState {
-  if (e.done || !input.trim()) return e;
+  if (e.done || e.kicked || !input.trim()) return e;
   const text = normalize(input);
   const reading = readInput(input);
   const said = [...e.said, { who: "you" as const, text: input.trim() }];
   const next = { ...e, said, turns: e.turns + 1 };
+
+  if (isInappropriate(input)) {
+    const rude = (e.rude ?? 0) + 1;
+    if (rude >= KICK_RUDE) {
+      return { ...next, rude, kicked: true, said: [...said, ...["...no.", "you got all the way here. past NEXUS. through my walls. and THIS is what you say?", "*the exit door locks. then the floor opens.*", "get out of my mainframe."].map((t) => ({ who: "her" as const, text: t }))] };
+    }
+    return { ...next, rude, said: [...said, { who: "her", text: "...excuse me?" }, { who: "her", text: "say that one more time and you're not leaving. you're being deleted." }] };
+  }
 
   if (anyOf(text, UNPLUG_WORDS) || reading.intent === "threaten") {
     return finish(next, "unplug", [

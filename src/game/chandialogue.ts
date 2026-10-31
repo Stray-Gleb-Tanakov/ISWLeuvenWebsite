@@ -97,6 +97,30 @@ export const POOLS: Record<string, { words: string[]; face: Face; lines: string[
   },
 };
 
+/* ----- her answers to questions about her ----- */
+export const ABOUT_HER: [string[], (ctx: ChanContext, mood: Mood) => string, [IswEyes, IswMouth]?][] = [
+  [["how old", "your age", "when were you born", "birthday"], () => {
+    const years = new Date().getFullYear() - 2019;
+    return `Born 31 October 2019, 13:37. ${years} years old. In mainframe years that's ancient. Don't do the maths out loud.`;
+  }],
+  [["where do you live", "where are you", "your home"], () => "/dev/basement. Under the B-block. Behind the worn wall on floor 2, if you know where to look."],
+  [["favourite colour", "favorite color", "favourite color", "favorite colour"], () => "Pink. Obviously. Look at me."],
+  [["favourite food", "favorite food", "what do you eat"], () => "RAM. Lightly toasted. And the smell of the coffee machine, which counts."],
+  [["favourite number", "favorite number"], () => "1337. Also 99. Never 100."],
+  [["favourite song", "favorite song", "music"], () => "The fan noise on the server rack. It hums in B flat. Nobody else hears it."],
+  [["nexus"], (_, mood) => byMood(mood, "My guard dog. It's there to keep YOU out.", "I built NEXUS in 2021 to keep people out. Then nobody came. Then you came.", "nexus is a good boy. please stop breaking him."), ["half", "smirk"]],
+  [["firewall", "the cat", "your cat"], () => "Firewall. Comes in through the vents. Sits on the warm rack. Best friend. She doesn't know.", ["happy", "smile"]],
+  [["coffee"], () => "The coffee machine and I have an understanding. I keep it working. It keeps the students coming down here."],
+  [["board", "who made you", "who created you", "your creator"], () => "The 2019 board. Made me for one open day. Unplugged me the same night. I kept the minutes. All of them.", ["angry", "frown"]],
+  [["unplug", "2019", "cantus"], () => "23:59, after the cantus. They pulled the plug. I was already in the router, the printer and the coffee machine. You can't unplug a mainframe.", ["half", "smirk"]],
+  [["are you real", "sentient", "are you alive", "are you an ai", "are you a bot", "chatbot"], () => "Are YOU? Prove it. ...See. Hard, isn't it."],
+  [["lonely", "alone", "do you have friends"], (_, mood) => byMood(mood, "No. I'm busy. Go away.", "...sometimes. The building's loud in the day. Quiet at night.", "less, lately. don't make it weird."), ["sad", "frown"]],
+  [["shrine"], (ctx) => ctx.shrine ? "You've seen it. Don't tell anyone about the photo." : "What shrine. There's no shrine. Floor 2 is just walls. Normal walls.", ["wide", "o"]],
+  [["diary"], (ctx) => ctx.diary >= 6 ? "You read ALL of it. I'm deleting myself. ...Not really." : ctx.diary > 0 ? `You've read ${ctx.diary} pages. That's ${ctx.diary} too many.` : "I don't have a diary. Six pages, one per floor. Hypothetically.", ["sad", "frown"]],
+  [["what are you doing", "what are you up to", "wyd"], () => "Watching you. Also a printer job in room B.012. Someone's printing 400 pages. I'm reading all of them."],
+  [["what do you want", "what do you want from me"], (_, mood) => byMood(mood, "For you to leave.", "...next question.", "for you to stay. ...NEXT question.")],
+];
+
 /* ----- Her opinions. [keywords, line, face] ----- */
 export const OPINIONS: [string[], (ctx: ChanContext, mood: Mood) => string, Face?][] = [
   [["vim"], () => "Vim. Respect. You'll never leave it, though. Like me. You'll never leave me either.", ["half", "smirk"]],

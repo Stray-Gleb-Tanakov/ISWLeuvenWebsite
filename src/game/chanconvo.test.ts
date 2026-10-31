@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { openConvo, chanTalk, KICK_FLATTERY, type ChanContext, type Convo } from "./chanconvo";
 import { parseUserAgent, type ChanEnv } from "./chanenv";
-import { createInitialState, gameReducer } from "./engine";
 import { adjustAffection, freshMemory, AFFECTION_CAP } from "./memory";
 
 const env: ChanEnv = { os: "Linux", browser: "Firefox", mobile: false, language: "nl-BE", timezone: "Europe/Brussels", hour: 2, minute: 14, screen: "1920x1080", cores: 8, darkMode: true, visits: 12 };
@@ -133,27 +132,5 @@ describe("more things to talk about", () => {
     expect(t.affection).toBe(1);
     convo = { ...openConvo(ctx()).convo, waiting: "fav_class" };
     expect(chanTalk(convo, "sysadmin", ctx(), rng).lines[0]).toMatch(/config files/);
-  });
-});
-
-describe("calling her in the game", () => {
-  const start = () => ({ ...gameReducer(createInitialState(), { type: "SELECT_CLASS", className: "Cyborg" }), enemies: [] });
-
-  it("C opens a call, bye hangs up", () => {
-    let s = gameReducer(start(), { type: "CALL_OPEN", ctx: ctx() });
-    expect(s.mode).toBe("CALL");
-    s = gameReducer(s, { type: "CALL_SAY", text: "how old are you", ctx: ctx() });
-    expect(s.call!.said.some((l) => l.who === "her" && /2019/.test(l.text))).toBe(true);
-    s = gameReducer(s, { type: "CALL_SAY", text: "bye", ctx: ctx() });
-    expect(s.mode).toBe("EXPLORE");
-    expect(s.call).toBeNull();
-  });
-
-  it("getting kicked out ends the run", () => {
-    let s = gameReducer(start(), { type: "CALL_OPEN", ctx: ctx({ affection: 0 }) });
-    for (const t of ["you're so cute", "you're amazing", "you're beautiful"]) s = gameReducer(s, { type: "CALL_SAY", text: t, ctx: ctx({ affection: 0 }) });
-    expect(s.mode).toBe("GAME_OVER");
-    expect(s.runStats.killedBy).toBe("ISW-Chan (kicked out)");
-    expect(s.log.join("\n")).toMatch(/DISCONNECTED BY ISW-CHAN/);
   });
 });

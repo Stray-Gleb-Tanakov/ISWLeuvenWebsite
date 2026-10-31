@@ -17,6 +17,8 @@ import { createPuzzle, createRandomEnemy, makeLeech } from "./data";
 import { ISW_CHAN_TAG } from "./iswchan";
 import { has, normalize, readInput, type Intent, type Topic } from "./parser";
 import type { Sprite } from "./raycaster";
+import { chanTalk, openConvo } from "./chanconvo";
+import { browserChanContext } from "./consolechat";
 
 const LOG_LIMIT = 60;
 const AMBUSH_CHANCE = 0.12; // per move between rooms
@@ -622,10 +624,27 @@ function caught(state: GameState, talk: TalkState, npc: NpcDef, lines: string[])
   };
 }
 
+/* ISW-Chan over the intercom: her full conversation (chanconvo.ts), same as in the console */
+function converseChan(state: GameState, talk: TalkState, input: string): GameState {
+  const p = state.player;
+  const ctx = browserChanContext(p ? { className: p.className, floor: p.floor, hp: p.stats.hp, maxHp: p.stats.maxHp, credits: p.credits, level: p.level } : undefined);
+  const t = chanTalk(talk.chan ?? openConvo(ctx).convo, input, ctx);
+  const lines = t.lines.map((l) => `${ISW_CHAN_TAG} ${l}`);
+  const chanAffection = { delta: t.affection, id: (state.chanAffection?.id ?? 0) + 1 };
+  if (!t.convo.kicked) return { ...state, talk: { ...talk, chan: t.convo }, chanAffection, log: out(state, ...lines) };
+  return {
+    ...state, mode: "GAME_OVER", currentEnemy: null, chanAffection,
+    talk: { ...talk, npc: null, chan: t.convo },
+    runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
+    log: out(state, ...lines, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} ${t.convo.kicked}`, "Press [R] to restart."),
+  };
+}
+
 function converse(state: GameState, talk: TalkState, npc: NpcDef, input: string): GameState {
   const { intent, topic, polite, question, echo } = readInput(input);
   const text = normalize(input);
   if (intent === "leave") return { ...state, talk: { ...talk, npc: null }, log: out(state, `You stop talking to ${npc.name.split(" //")[0]}.`) };
+  if (npc.id === "isw") return converseChan(state, talk, input);
 
   const before = talk.suspicion[npc.id] ?? 0;
   const mem = { claims: [], recent: [], trust: 0, pending: null, used: [], ...talk.memory?.[npc.id] };

@@ -19,11 +19,8 @@ import CosmeticsPicker from "@/components/CosmeticsPicker";
 import IswChanMemoryPanel from "@/components/IswChanMemoryPanel";
 import IswChanCam from "@/components/IswChanCam";
 import EndingPanel from "@/components/EndingPanel";
-import CallPanel from "@/components/CallPanel";
-import { readChanEnv } from "@/game/chanenv";
-import type { ChanContext } from "@/game/chanconvo";
-import { HIDDEN_FLAGS } from "@/game/flags";
 import { loadMemory, recordRun, saveMemory, adjustAffection } from "@/game/memory";
+import { loadFacts, noteRun, saveFacts } from "@/game/chanfacts";
 import type { HiddenFlag } from "@/game/flags";
 import { ICONS, DEATH_TEXTS } from "@/game/cosmetics";
 import { PERKS, PARANOIA_WARNINGS, hasPerk } from "@/game/perks";
@@ -346,27 +343,25 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
       saveMemory(next);
       return next;
     });
+    // ...and she remembers how it went (chanfacts.ts)
+    const p = state.player;
+    if (p) saveFacts(noteRun(loadFacts(), { className: p.className, floor: p.floor, won: state.mode === "WIN", killedBy: state.runStats.killedBy, perfects: state.runStats.perfects }));
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // What ISW-Chan knows when you call her
-  const chanContext = useCallback((): ChanContext => {
-    const missing = HIDDEN_FLAGS.filter((f) => !found[f.id]);
-    const p = state.player;
-    return {
-      env: readChanEnv(), affection: memory.affection, runs: memory.runs, wins: memory.wins,
-      diary: new Set([...memory.diary, ...(state.diaryFound ?? [])]).size, shrine: memory.shrine || !!state.shrineFound,
-      flags: Object.keys(found).length, flagsTotal: HIDDEN_FLAGS.length,
-      flagHint: missing.length ? missing[Math.floor(Math.random() * missing.length)].hint : null,
-      run: p ? { className: p.className, floor: p.floor, hp: p.stats.hp, maxHp: p.stats.maxHp, credits: p.credits, level: p.level } : undefined,
-    };
-  }, [found, memory, state.player, state.diaryFound, state.shrineFound]);
-
-  // Things you say on a call change how she feels about you, for good
+  // What you tell her over the intercom, she keeps (how your runs went is recorded above, not here)
+  const chanFacts = state.talk?.chan?.facts;
   useEffect(() => {
-    const change = state.call?.affection;
+    if (!chanFacts) return;
+    const { deaths, lastRun } = loadFacts();
+    saveFacts({ ...chanFacts, deaths, lastRun });
+  }, [chanFacts]);
+
+  // Things you say to her change how she feels about you, for good
+  useEffect(() => {
+    const change = state.chanAffection;
     if (!change || change.delta === 0) return;
     setMemory((m) => { const next = adjustAffection(m, change.delta); saveMemory(next); return next; });
-  }, [state.call?.affection.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [state.chanAffection?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     logRef.current?.scrollTo(0, logRef.current.scrollHeight);
@@ -439,7 +434,6 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
           else if (key === "d" || key === "arrowright") dispatch({ type: "MOVE", dx: 1, dy: 0 });
           else if (key === "i") dispatch({ type: "TOGGLE_INVENTORY" });
           else if (key === "x") dispatch({ type: "TOGGLE_STEALTH" });
-          else if (key === "c") dispatch({ type: "CALL_OPEN", ctx: chanContext() });
           break;
         case "COMBAT":
           if (key === "a") dispatch({ type: "ATTACK" });
@@ -493,7 +487,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
           break;
       }
     },
-    [state.mode, state.dialogueChoices, state.haggle, submitTyped, chanContext]
+    [state.mode, state.dialogueChoices, state.haggle, submitTyped]
   );
 
   const view = narrow ? VIEWPORT.narrow : VIEWPORT.wide;
@@ -548,11 +542,8 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
 
           {state.mode === "TALK" && state.talk && <TalkPanel state={state} dispatch={dispatch} narrow={narrow} />}
 
-          {state.mode === "ENDING" && state.ending && <EndingPanel state={state} dispatch={dispatch} />}
+          {(state.mode === "ENDING" || (state.mode === "GAME_OVER" && state.ending?.kicked)) && state.ending && <EndingPanel state={state} dispatch={dispatch} />}
 
-          {(state.mode === "CALL" || (state.mode === "GAME_OVER" && state.call?.convo.kicked)) && state.call && (
-            <CallPanel call={state.call} over={state.mode === "GAME_OVER"} onSay={(text) => dispatch({ type: "CALL_SAY", text, ctx: chanContext() })} onHangUp={() => dispatch({ type: "CALL_HANGUP", ctx: chanContext() })} />
-          )}
 
           {state.mode === "PERK" && state.perkChoices && (
             <PerkPanel choices={state.perkChoices} onPick={(index) => dispatch({ type: "PICK_PERK", index })} />
@@ -646,7 +637,7 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
 
           {/* Controls hint (desktop) */}
           <div className="text-muted-foreground text-[9px] border-t border-border pt-1 hidden md:block">
-            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles, $ to shop, U to upload flags | C: Call ISW-Chan"}
+            {state.mode === "EXPLORE" && "WASD/Arrows: Move | I: Inventory | X: Stealth | Walk into T for puzzles, $ to shop, U to upload flags"}
             {state.mode === "COMBAT" && "A: Attack | Q/1: Special (QTE) | 2-3: Skills | 4-9: Items | F: Flee"}
             {state.mode === "QTE" && "Quick-time event! Follow the prompt."}
             {state.mode === "SHOP" && !state.haggle && "1-6: Buy | H: Haggle | Esc: Leave"}

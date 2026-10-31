@@ -20,8 +20,7 @@ export type GameMode =
   | "UPLINK"    // terminal where hidden website flags are entered
   | "PERK"      // level-up: pick 1 of 3 perks
   | "TALK"      // Social Engineer: text-adventure mode
-  | "ENDING"    // secret ending: ISW-Chan after NEXUS falls (ending.ts)
-  | "CALL";     // a call with ISW-Chan (C while exploring, chanconvo.ts)
+  | "ENDING";   // secret ending: ISW-Chan after NEXUS falls (ending.ts)
 
 export type ClassName = "Netrunner" | "Cyborg" | "Ghost" | "Sysadmin" | "Script Kiddie" | "Social Engineer";
 
@@ -198,6 +197,7 @@ export interface TalkState {
   visited: string[];
   // per NPC: what you claimed, your last intents, how convinced they are, an open question, trust already earned
   memory: Record<string, { claims: string[]; recent: string[]; trust: number; pending: string | null; used: string[] }>;
+  chan?: Convo;         // talking to ISW-Chan uses her full conversation (chanconvo.ts)
 }
 
 export interface RunStats {
@@ -275,21 +275,13 @@ export interface GameState {
   ending?: EndingState | null;     // the secret ending conversation
   endingId?: EndingId;             // which secret ending this run got
   diaryFound?: number[];           // ISW-Chan diary pages picked up this run (by floor)
-  call?: ChanCall | null;          // the current call with ISW-Chan
+  chanAffection?: { delta: number; id: number }; // her latest change of heart (talk mode), applied to her memory by the UI
 }
 
-export interface ChanCall {
-  convo: Convo;
-  said: { who: "you" | "her"; text: string }[];
-  affection: { delta: number; id: number }; // her latest change of heart, for the memory panel to apply
-}
 
 export type GameAction =
   | { type: "SELECT_CLASS"; className: ClassName; flagsFound?: number; affection?: number }
   | { type: "ENDING_SAY"; text: string }
-  | { type: "CALL_OPEN"; ctx: ChanContext }
-  | { type: "CALL_SAY"; text: string; ctx: ChanContext }
-  | { type: "CALL_HANGUP"; ctx: ChanContext }
   | { type: "MOVE"; dx: number; dy: number }
   | { type: "ATTACK" }
   | { type: "SPECIAL" }

@@ -1479,35 +1479,16 @@ function reduce(state: GameState, action: GameAction): GameState {
       return { ...state, puzzleInput: "", flagsFound: action.flagsFound, log: addLog(state, ...msg) };
     }
 
-    /* === CALLING ISW-CHAN (C while exploring) === */
-    case "CALL_OPEN": {
-      if (state.mode !== "EXPLORE" || !state.player || state.talk) return state;
-      const t = openConvo(action.ctx);
-      return { ...state, mode: "CALL", call: { convo: t.convo, said: t.lines.map((text) => ({ who: "her", text })), affection: { delta: 0, id: 0 } } };
-    }
-    case "CALL_SAY": {
-      if (state.mode !== "CALL" || !state.call || !state.player) return state;
-      if (/^\s*(bye|goodbye|hang up|doei|exit|quit)\W*$/i.test(action.text)) return reduce(state, { type: "CALL_HANGUP", ctx: action.ctx });
-      const t = chanTalk(state.call.convo, action.text, action.ctx);
-      const said = [...state.call.said, { who: "you" as const, text: action.text.trim() }, ...t.lines.map((text) => ({ who: "her" as const, text }))];
-      const call = { convo: t.convo, said, affection: { delta: t.affection, id: state.call.affection.id + 1 } };
-      if (!t.convo.kicked) return { ...state, call };
-      // Kicked out of the mainframe: the run is over
-      return {
-        ...state, mode: "GAME_OVER", call, currentEnemy: null, qte: null,
-        runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
-        log: addLog(state, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} ${t.convo.kicked}`, "Press [R] to restart."),
-      };
-    }
-    case "CALL_HANGUP": {
-      if (state.mode !== "CALL" || !state.call) return state;
-      return { ...state, mode: "EXPLORE", call: null, log: addLog(state, `${ISW_CHAN_TAG} ${hangUpLine(state.call.convo, action.ctx)}`) };
-    }
-
     /* === SECRET ENDING: typed conversation with ISW-Chan === */
     case "ENDING_SAY": {
       if (state.mode !== "ENDING" || !state.ending) return state;
       const ending = endingReply(state.ending, action.text);
+      if (ending.kicked) {
+        return {
+          ...state, ending, mode: "GAME_OVER", runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
+          log: addLog(state, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} Inappropriate. Twice. No ending for you.`, "Press [R] to restart."),
+        };
+      }
       if (!ending.done) return { ...state, ending };
       return {
         ...state, ending, mode: "WIN", endingId: ending.done,

@@ -6,6 +6,7 @@
    ==================================================== */
 
 import { readInput, type Intent, type Topic } from "./parser";
+import { echoable } from "./chanfilter";
 
 const BY_INTENT: Partial<Record<Intent, string[]>> = {
   greet: ["hi. ...you're talking to me? on purpose?", "Hello, little hacker. Took you long enough."],
@@ -59,6 +60,6 @@ export function chanReply(text: string, rng: () => number = Math.random): string
   const pool = BY_INTENT[r.intent];
   if (pool) return pick(pool, rng);
   if (r.question) return pick(["Questions, questions. I ask the questions. ...Fine: maybe.", "Ask me again on floor 6."], rng);
-  if (r.echo) return pick(ECHO, rng)(r.echo);
+  if (r.echo && echoable(r.echo)) return pick(ECHO, rng)(r.echo);
   return pick(SHRUG, rng);
 }
