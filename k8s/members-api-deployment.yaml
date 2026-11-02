@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: members-api
-          image: ghcr.io/stray-gleb-tanakov/members-api:latest
+          image: ghcr.io/stray-gleb-tanakov/members-api:ab26ea2164fe96df08f4e10d5637cf17e7a89318
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
