@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
 import { memberIntro } from "@/data/site-data";
@@ -45,7 +46,7 @@ const Members = () => {
 </p>
     <p className="text-muted-foreground mt-4 text-sm">
         # How to become a member?<br/>
-        - Fill out the membership form
+        - Fill out the <Link to="/member-signup" className="text-primary hover:underline">membership form</Link>
         - Pay the membership fee
     </p>
     <p className="text-muted-foreground mt-4 text-sm">

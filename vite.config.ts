@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
     proxy: {
+      // members-api runs on 3001 locally (PORT=3001 npm --prefix members-api run dev)
+      "/api/members": "http://localhost:3001",
       "/api": "http://localhost:3000",
     },
     // Same as nginx.conf in production, so the header flag also works locally

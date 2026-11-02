@@ -9,6 +9,14 @@ spec:
     - host: iswleuven.be # replace with your real domain
       http:
         paths:
+          # Longest prefix wins, so /api/members goes here and the rest of /api to food-api
+          - path: /api/members
+            pathType: Prefix
+            backend:
+              service:
+                name: members-api
+                port:
+                  number: 3000
           - path: /api
             pathType: Prefix
             backend:

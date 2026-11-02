@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: members-api
+  namespace: iswleuven
+  labels:
+    app: members-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: members-api
+  template:
+    metadata:
+      labels:
+        app: members-api
+    spec:
+      containers:
+        - name: members-api
+          image: ghcr.io/stray-gleb-tanakov/members-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          # Applied by hand, never committed: kubectl apply -f members-api/k8s-secret.yaml
+          # (template: members-api/k8s-secret.example.yaml)
+          envFrom:
+            - secretRef:
+                name: members-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/livez
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 192Mi
