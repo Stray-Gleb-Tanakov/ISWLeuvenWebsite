@@ -48,7 +48,42 @@ const useFoodMenu = () => {
   return { menu, live };
 };
 
-const LokaalCard = ({ block }: { block: LokaalBlock }) => (
+type DoorStatus = { status: "open" | "closed" | "unknown"; since: string | null };
+
+const formatSince = (iso: string) => {
+  const date = new Date(iso);
+  const time = date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === new Date().toDateString()) return time;
+  return `${date.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${time}`;
+};
+
+// Live door sensor status (read from Discord by food-api); null keeps the static "Maybe." from site-data.
+const useDoorStatus = () => {
+  const [open, setOpen] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () =>
+      fetch("/api/door", { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
+        .then((data: DoorStatus) => {
+          if (data.status === "unknown" || !data.since) return setOpen(null);
+          const since = formatSince(data.since);
+          setOpen(data.status === "open" ? `Yes 🟢 (since ${since})` : `No 🔴 (since ${since})`);
+        })
+        .catch(() => {});
+    load();
+    const interval = setInterval(load, 60_000);
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
+  }, []);
+
+  return open;
+};
+
+const LokaalCard =({ block }: { block: LokaalBlock }) => (
   <article className="bg-card border border-border hover:border-primary transition-colors p-4 sm:p-6">
     <h3 className="text-primary text-glow font-bold text-lg mb-4 flex items-center gap-2">
       <span>{block.emoji}</span>
@@ -110,6 +145,14 @@ const FoodCard = ({ category }: { category: FoodCategory }) => {
 };
 const Lokaal = () => {
   const { menu, live } = useFoodMenu();
+  const doorOpen = useDoorStatus();
+  const blocks = doorOpen
+    ? lokaalBlocks.map((block) =>
+        block.id === "room"
+          ? { ...block, details: block.details.map((d) => (d.id === "r1" ? { ...d, value: doorOpen } : d)) }
+          : block,
+      )
+    : lokaalBlocks;
   return (
   <PageLayout>
     <div className="py-8 sm:py-16 px-4">
@@ -124,7 +167,7 @@ const Lokaal = () => {
         </header>
         {/* Lokaal blocks */}
         <div className="space-y-4">
-          {lokaalBlocks.map((block) => (
+          {blocks.map((block) => (
             <LokaalCard key={block.id} block={block} />
           ))}
         </div>
