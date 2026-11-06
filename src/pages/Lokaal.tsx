@@ -188,7 +188,7 @@ const Lokaal = () => {
         {/* Footer */}
         <footer className="mt-8 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground">
-            <span className="text-primary"></span> 
+            <span className="text-primary">NOTE:</span> prices may change. Members get discounts.
           </p>
         </footer>
       </div>

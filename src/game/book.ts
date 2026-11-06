@@ -8,7 +8,7 @@
    - inside a word only letters and digits count
    ==================================================== */
 
-import { aboutMission, memberIntro, events } from "@/data/site-data";
+import { aboutMission, memberIntro, eventsInPageOrder } from "@/data/site-data";
 
 export interface BookSource {
   page: string;
@@ -19,11 +19,18 @@ export interface BookSource {
 export const BOOKS = {
   about: { page: "/about (the ./mission text)", sections: [aboutMission] },
   members: { page: "/members (the ./what_is_a_member text, one section per sentence)", sections: memberIntro.split(/(?<=\.)\s+/) },
-  events: { page: "/events (one section per event, top to bottom, ignore the leading #)", sections: events.map((e) => e.description) },
+  events: { page: "/events (one section per event, top to bottom, ignore the leading #)", sections: eventsInPageOrder().map((e) => e.description) },
 } satisfies Record<string, BookSource>;
 
+/* Cached: puzzle generation calls locate() for every letter of many candidate words */
+const wordCache = new Map<string, string[]>();
 function wordsOf(section: string): string[] {
-  return section.trim().split(/\s+/).map((w) => w.replace(/[^A-Za-z0-9]/g, "").toUpperCase());
+  let words = wordCache.get(section);
+  if (!words) {
+    words = section.trim().split(/\s+/).map((w) => w.replace(/[^A-Za-z0-9]/g, "").toUpperCase());
+    wordCache.set(section, words);
+  }
+  return words;
 }
 
 /* Every [section?, word, letter?] position of a character, 1-based */

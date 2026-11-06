@@ -132,7 +132,6 @@ const PrivacyPolicy = () => {
               items={[
                 "Membership year / academic year",
                 "Membership status (active / inactive)",
-                "Date of last activity, such as the last event attended or last email interaction",
               ]}
             />
           </Subsection>
@@ -217,14 +216,12 @@ const PrivacyPolicy = () => {
 
           <Subsection title="4.1 Contact and membership data">
             <p>
-              Name, email, membership status, and last activity date are kept
-              while you are an active member.
+              Your sign-up details and membership status are kept while you are
+              a member.
             </p>
 
             <p>
-              After your membership ends or you become inactive, we keep this
-              data for up to 2 academic years after your last activity, such as
-              your last event attendance or email interaction.
+              After you leave ISW, we keep this data for up to 2 years.
             </p>
 
             <p>

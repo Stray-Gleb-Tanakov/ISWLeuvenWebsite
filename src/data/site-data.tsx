@@ -1,4 +1,4 @@
-import { Calendar, BookOpen, Users, MessageSquare, Home, UserPlus } from "lucide-react";
+import { Calendar, BookOpen, Users, MessageSquare, Home, UserPlus, ShieldCheck } from "lucide-react";
 import { ReactNode } from "react";
 
 // ============================================
@@ -136,12 +136,12 @@ export const commands: Command[] = [
     href: "/member-signup",
   },
   {
-    id: "Privacy Policy",
-    label: "Privacy Policy",
-    description: "View our privacy policy, we are GDPR compliant!",
-    icon: <Users className="w-5 h-5" />,
+    id: "privacy",
+    label: "privacy",
+    description: "Read how we handle your data (GDPR)",
+    icon: <ShieldCheck className="w-5 h-5" />,
     href: "/privacypolicy",
-  }
+  },
 ];
 
 // ============================================
@@ -189,8 +189,43 @@ export const events: Event[] = [
     time: "15:00-16:30",
     location: "C106",
     description: "Explaining how Git, the best and worst thing ever works. We will cover the basics of version control, how to use Git for your projects, and how to collaborate with others using GitHub. Whether you're a beginner or just looking to brush up on your skills, this workshop will provide you with the knowledge and tools you need to effectively use Git and GitHub in your development workflow.",
-  }
+  },
+  {
+    id: "4",
+    title: "Movie Night",
+    date: "2026-10-28",
+    time: "18:30",
+    location: "Aula",
+    description: "Movie night in the aula, on the big screen, with popcorn and snacks. Grab a seat and bring your friends.",
+  },
+  {
+    id: "5",
+    title: "Laser Shooting",
+    date: "2026-11-19",
+    time: "19:00",
+    location: "Block D (the whole thing)",
+    description: "Laser shooting across the whole of Block D. Pick a team, grab a gun, and hunt each other down through the corridors.",
+  },
 ];
+
+/* Local YYYY-MM-DD, comparable with Event.date */
+const todayIso = (now: Date) =>
+  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+/* Events as /events shows them: upcoming (soonest first), then past (latest first).
+   The game's events book cipher (src/game/book.ts) reads them in this same order. */
+export function splitEvents(now = new Date()): { upcoming: Event[]; past: Event[] } {
+  const today = todayIso(now);
+  return {
+    upcoming: events.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)),
+    past: events.filter((e) => e.date < today).sort((a, b) => b.date.localeCompare(a.date)),
+  };
+}
+
+export function eventsInPageOrder(now = new Date()): Event[] {
+  const { upcoming, past } = splitEvents(now);
+  return [...upcoming, ...past];
+}
 
 // ============================================
 // BOARD MEMBERS

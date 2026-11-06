@@ -7,8 +7,8 @@ import { xorReveal } from "@/game/flags";
 
 const CATCHES_KEY = "isw_chan_caught";
 export const CATCHES_NEEDED = 10;
-const PEEK_CHANCE = 0.25;       // per page visit
-const DELAY_MS = [8000, 30000]; // when she shows up after you land on a page
+const PEEK_CHANCE = 0.4;        // per page visit
+const DELAY_MS = [4000, 15000]; // when she shows up after you land on a page
 const VISIBLE_MS = 2600;
 const SECRET = "OTYyECJWOig4MTojUjAwP0NWLlovJRI=";
 
