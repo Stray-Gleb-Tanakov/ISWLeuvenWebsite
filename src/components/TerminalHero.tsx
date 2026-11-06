@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import iswLogo from "@/assets/isw-logo.png";
 
 
 const ASCII_LOGO = `
@@ -53,12 +52,6 @@ const TerminalHero = () => {
     <section className="min-h-screen flex flex-col items-center justify-center px-4 relative">
       {/* ASCII Logo */}
       {/* Logo */}
-      <img
-        src={iswLogo}
-        alt="ISW Leuven logo"
-        className="w-24 h-24 sm:w-32 sm:h-32 mb-6 select-none invert drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
-        draggable={false}
-      />
       <pre className="ascii-art hidden sm:block mb-8 select-none" aria-hidden="true">
         {ASCII_LOGO}
       </pre>
