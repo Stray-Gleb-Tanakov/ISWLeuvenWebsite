@@ -5,6 +5,49 @@ import { MEMBERS_EMAIL, MemberRecord, submitMemberSignup } from "@/lib/members";
 
 const IBAN = "BE03 7330 2225 7284";
 
+/* TEMPORARY: until members-api has a mail server / DB, sign-ups go through the board's
+   Google Form, embedded below. Set to false to bring back the site's own form. */
+const USE_GOOGLE_FORM = true;
+const GOOGLE_FORM_ID = "1FAIpQLSeXyfmGbGd5mbK1TGEYEKhO5h7PsVo0RMBBFX8SHj0q51Ftuw";
+const GOOGLE_FORM_URL = `https://docs.google.com/forms/d/e/${GOOGLE_FORM_ID}/viewform`;
+
+const PaymentInfo = () => (
+  <div className="bg-card border border-border p-4 sm:p-6">
+    <p className="text-foreground">
+      Bank Account: <span className="font-bold">{IBAN}</span>
+    </p>
+    <p className="text-foreground mt-6">Payment information:</p>
+    <ul className="text-muted-foreground text-sm mt-2 space-y-1">
+      <li>- In order to be a member, you need to pay: 10 Euros</li>
+      <li>- This will be for 1 year (2 semesters)</li>
+      <li>
+        - Please specify in the <span className="text-foreground font-bold">Transfer message</span> that the money is for membership sign-up, and add your student number.
+      </li>
+    </ul>
+  </div>
+);
+
+const GoogleFormSignup = () => (
+  <div className="space-y-4">
+    <div className="bg-card border border-border">
+      <iframe
+        src={`${GOOGLE_FORM_URL}?embedded=true`}
+        title="ISW Leuven membership sign-up form"
+        // Google Forms can't report its height cross-origin; these fit the current form (≈1500px desktop, ≈1870px phone)
+        className="block w-full h-[2000px] sm:h-[1600px] bg-white"
+      >
+        Loading…
+      </iframe>
+    </div>
+    <p className="text-muted-foreground text-sm">
+      # form not loading?{" "}
+      <a href={GOOGLE_FORM_URL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+        open it in a new tab
+      </a>
+    </p>
+  </div>
+);
+
 interface FieldProps {
   id: string;
   label: string;
@@ -91,7 +134,9 @@ const MemberSignup = () => {
             <div className="h-px bg-border w-full mt-4" />
           </header>
 
-          {submitted ? (
+          {USE_GOOGLE_FORM ? (
+            <GoogleFormSignup />
+          ) : submitted ? (
             <section className="bg-card border border-primary p-4 sm:p-6 space-y-3">
               <p className="text-primary text-glow">&gt; sign-up received. one step left.</p>
               <p className="text-muted-foreground text-sm"># the board got this:</p>
@@ -126,19 +171,7 @@ const MemberSignup = () => {
                 className="absolute -left-[9999px] w-px h-px opacity-0"
               />
 
-              <div className="bg-card border border-border p-4 sm:p-6">
-                <p className="text-foreground">
-                  Bank Account: <span className="font-bold">{IBAN}</span>
-                </p>
-                <p className="text-foreground mt-6">Payment information:</p>
-                <ul className="text-muted-foreground text-sm mt-2 space-y-1">
-                  <li>- In order to be a member, you need to pay: 10 Euros</li>
-                  <li>- This will be for 1 year (2 semesters)</li>
-                  <li>
-                    - Please specify in the <span className="text-foreground font-bold">Transfer message</span> that the money is for membership sign-up, and add your student number.
-                  </li>
-                </ul>
-              </div>
+              <PaymentInfo />
 
               {error && (
                 <p className="text-destructive text-sm">

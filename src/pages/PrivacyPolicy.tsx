@@ -39,7 +39,7 @@ const PrivacyPolicy = () => {
             <span className="text-green-500">$</span> last_updated
           </p>
           <p className="mt-1 text-green-200">
-            Last updated: 24 September 2026
+            Last updated: 6 November 2026
           </p>
         </div>
 
@@ -73,7 +73,7 @@ const PrivacyPolicy = () => {
               </a>
             </p>
             <p>
-              <strong>Address:</strong> Geldenaaksebaan 335
+              <strong>Address:</strong> Geldenaaksebaan 335, 3001 Leuven, Belgium
             </p>
           </div>
 
@@ -95,9 +95,36 @@ const PrivacyPolicy = () => {
               items={[
                 "First name and last name",
                 "Email address",
-                "Optionally: phone number, student number, and study programme",
+                "Optionally: student number and Discord username",
               ]}
             />
+          </Subsection>
+
+          <Subsection title="How you give us this data">
+            <p>
+              You sign up through the membership form on our website. This form
+              is a Google Form embedded in the page: what you fill in is sent
+              directly to Google and stored in a Google account managed by the
+              board, not on our own servers.
+            </p>
+            <p>
+              When the sign-up page loads the form, Google receives technical
+              data such as your IP address and browser information, and may
+              set cookies, as described in{" "}
+              <a
+                href="https://policies.google.com/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="terminal-link"
+              >
+                Google's privacy policy
+              </a>
+              . If you prefer not to use Google, email us at{" "}
+              <a href="mailto:isw@ucll.be" className="terminal-link">
+                isw@ucll.be
+              </a>{" "}
+              and we will sign you up by hand.
+            </p>
           </Subsection>
 
           <Subsection title="Membership data">
@@ -246,9 +273,18 @@ const PrivacyPolicy = () => {
           <BulletList
             items={[
               "Our bank, for receiving membership fees",
-              "IT providers, such as email services, where they act as processors under appropriate safeguards",
+              "Google (Google Forms and Google Sheets), which stores membership sign-ups on our behalf",
+              "Other IT providers, such as email services, where they act as processors under appropriate safeguards",
             ]}
           />
+
+          <p className="mt-4">
+            Google may process data outside the European Economic Area, for
+            example in the United States. Google covers such transfers with the
+            safeguards the GDPR requires, such as the European Commission's
+            Standard Contractual Clauses and the EU-U.S. Data Privacy
+            Framework.
+          </p>
 
           <p className="mt-4">
             We do not sell or share your data with third parties for marketing
@@ -317,7 +353,21 @@ const PrivacyPolicy = () => {
           />
         </PrivacySection>
 
-        <PrivacySection number="8" title="Changes to this privacy policy">
+        <PrivacySection number="8" title="Our website">
+          <p>
+            Apart from the membership form, our website does not use analytics
+            or advertising trackers.
+          </p>
+
+          <BulletList
+            items={[
+              "Game progress, settings, and similar preferences are saved in your own browser (local storage and one small cookie). They never leave your device, and you can delete them by clearing your browser data.",
+              "If you submit a score to the game leaderboard, the name you choose and your score are stored on our server and shown publicly on the leaderboard. Don't use your real name if you don't want it to be public.",
+            ]}
+          />
+        </PrivacySection>
+
+        <PrivacySection number="9" title="Changes to this privacy policy">
           <p>
             We may update this privacy policy from time to time, for example if
             our activities or legal obligations change.
@@ -329,7 +379,7 @@ const PrivacyPolicy = () => {
           </p>
         </PrivacySection>
 
-        <PrivacySection number="9" title="Contact">
+        <PrivacySection number="10" title="Contact">
           <p>
             If you have any questions about this privacy policy or our
             processing of your personal data, please contact us at:
@@ -347,7 +397,7 @@ const PrivacyPolicy = () => {
           <p>
             <span className="text-green-500">$</span> policy.status
           </p>
-          <p className="mt-1">active // last reviewed 24-09-2026</p>
+          <p className="mt-1">active // last reviewed 06-11-2026</p>
         </div>
         {printing && (
           <section className="border border-dashed border-green-500/60 p-4 font-mono text-sm">

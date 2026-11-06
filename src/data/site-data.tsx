@@ -1,4 +1,4 @@
-import { Calendar, BookOpen, Users, MessageSquare, Home } from "lucide-react";
+import { Calendar, BookOpen, Users, MessageSquare, Home, UserPlus } from "lucide-react";
 import { ReactNode } from "react";
 
 // ============================================
@@ -127,6 +127,13 @@ export const commands: Command[] = [
     description: "View information about our members",
     icon: <Users className="w-5 h-5" />,
     href: "/members",
+  },
+  {
+    id: "member-signup",
+    label: "signup",
+    description: "Become an ISW member (10€ / year)",
+    icon: <UserPlus className="w-5 h-5" />,
+    href: "/member-signup",
   },
   {
     id: "Privacy Policy",
@@ -293,6 +300,19 @@ export const lokaalBlocks: LokaalBlock[] = [
       { id: "p2", key: "Material", value: "Filament (PLA black)" },
       { id: "p3", key: "Cost", value: "€0.08/g for single use,if (member && pay_for_semester) 19 euro else 29 euro per school year" },
       { id: "p4", key: "Booking", value: "Message the PR-meester" },
+    ],
+  },
+  {
+    id: "servers",
+    title: "For Sale: Servers",
+    emoji: "🖥️",
+    details: [
+      { id: "s1", key: "What", value: "Industrial rack servers, used but in perfect condition" },
+      { id: "s2", key: "RAM", value: "Up to 72 GB of DDR3 server RAM" },
+      { id: "s3", key: "Storage", value: "Lots of it" },
+      { id: "s4", key: "Specs", value: "Exact specs coming soon" },
+      { id: "s5", key: "Price", value: "Cheap, and negotiable" },
+      { id: "s6", key: "Interested?", value: "Drop by the room (Block B, Basement) or ask the board, see ./contact" },
     ],
   },
 
