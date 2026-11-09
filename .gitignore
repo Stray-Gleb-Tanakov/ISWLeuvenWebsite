@@ -28,4 +28,6 @@ food-api/.env
 food-api/k8s-secret.yaml
 members-api/.env
 members-api/k8s-secret.yaml
+door-api/.env
+door-api/k8s-secret.yaml
 node_modules

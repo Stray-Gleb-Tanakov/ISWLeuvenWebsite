@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: door-api
+  namespace: iswleuven
+  labels:
+    app: door-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: door-api
+  template:
+    metadata:
+      labels:
+        app: door-api
+    spec:
+      containers:
+        - name: door-api
+          image: ghcr.io/stray-gleb-tanakov/door-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          # Applied by hand, never committed: kubectl apply -f door-api/k8s-secret.yaml
+          # (template: door-api/k8s-secret.example.yaml)
+          envFrom:
+            - secretRef:
+                name: door-api-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/door/livez
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/door/livez
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 48Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi

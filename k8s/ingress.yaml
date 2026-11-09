@@ -9,7 +9,14 @@ spec:
     - host: iswleuven.be
       http:
         paths:
-          # Longest prefix wins, so /api/members goes here and the rest of /api to food-api
+          # Longest prefix wins, so /api/members and /api/door go to their own APIs and the rest of /api to food-api
+          - path: /api/door
+            pathType: Prefix
+            backend:
+              service:
+                name: door-api
+                port:
+                  number: 3000
           - path: /api/members
             pathType: Prefix
             backend:

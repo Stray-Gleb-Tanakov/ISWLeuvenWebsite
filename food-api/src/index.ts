@@ -2,7 +2,6 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { RowDataPacket } from "mysql2";
 import { db, migrate } from "./db.ts";
-import { door } from "./door.ts";
 import { scores } from "./scores.ts";
 
 const app = new Hono().basePath("/api");
@@ -67,7 +66,6 @@ app.get("/food", async (c) => {
   );
 });
 
-app.route("/door", door);
 app.route("/scores", scores);
 
 await migrate();
