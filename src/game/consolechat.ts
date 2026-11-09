@@ -3,7 +3,7 @@
    Same conversation as the talk-mode intercom (chanconvo.ts):
    she knows your device, your runs and your flags, and
    what you say changes how much she likes you. Get kicked
-   out and she blocks you for a while.
+   out and she "hardware bans" you (chanban.ts).
    ==================================================== */
 
 import { chanTalk, openConvo, type ChanContext, type Convo } from "./chanconvo";
@@ -11,12 +11,11 @@ import { readChanEnv } from "./chanenv";
 import { HIDDEN_FLAGS } from "./flags";
 import { adjustAffection, loadMemory, saveMemory } from "./memory";
 import { loadFacts, saveFacts } from "./chanfacts";
+import { addStrike, bannedFor, formatLeft, hardwareLines } from "./chanban";
 
 const STYLE = "color:#ff6eb4;font-family:monospace";
 const TAG = "background:#ff6eb4;color:#000;font-weight:bold;padding:1px 4px";
 const FLAGS_KEY = "isw-ctf-flags"; // see UseFoundFlags
-const BLOCKED_KEY = "isw_chan_blocked_until";
-const BLOCK_MS = 10 * 60 * 1000;
 
 let convo: Convo | null = null;
 
@@ -39,14 +38,14 @@ export function browserChanContext(run?: ChanContext["run"]): ChanContext {
   };
 }
 
-function blockedFor(): number {
-  try { return Math.max(0, Number(sessionStorage.getItem(BLOCKED_KEY)) - Date.now()); } catch { return 0; }
-}
-
 export function iswChan(message?: unknown): string {
-  const blocked = blockedFor();
-  if (blocked > 0) {
-    say(`*blocked*. Try again in ${Math.ceil(blocked / 60000)} min. Think about what you did.`);
+  const banned = bannedFor();
+  if (banned === Infinity) {
+    say("*this device is permanently banned*. I remember your hardware. Go away.");
+    return "🚫";
+  }
+  if (banned > 0) {
+    say(`*hardware banned*. Try again in ${formatLeft(banned)}. Think about what you did.`);
     return "🚫";
   }
   if (!convo || message === undefined) {
@@ -65,7 +64,7 @@ export function iswChan(message?: unknown): string {
   if (convo.facts) saveFacts(convo.facts);
   if (t.affection !== 0) saveMemory(adjustAffection(loadMemory(), t.affection));
   if (convo.kicked) {
-    try { sessionStorage.setItem(BLOCKED_KEY, String(Date.now() + BLOCK_MS)); } catch { /* she'll forget */ }
+    hardwareLines(addStrike()).forEach(say);
     convo = null;
     return "🚫";
   }

@@ -3,6 +3,7 @@ import type { GameState } from "@/game/types";
 import { ISW_CHAN_TAG, moodOf } from "@/game/iswchan";
 import type { IswEyes, IswMouth } from "@/game/portraits";
 import IswChanPortrait from "@/components/IswChanPortrait";
+import { useChanBan } from "@/hooks/UseChanBan";
 
 /* ISW-Chan's camera in the HUD: her portrait, with expressions that react to the run.
    Expressions follow her mood (docs/isw-chan-canon.md). */
@@ -18,6 +19,7 @@ const FACES = {
   talk: { eyes: "open", mouth: "smile", say: "psst." },
   sad: { eyes: "sad", mouth: "frown", say: "...again?" },
   love: { eyes: "heart", mouth: "smile", say: "!!" },
+  blocked: { eyes: "angry", mouth: "frown", say: "BLACKLISTED" }, // hardware-banned (chanban.ts)
 } satisfies Record<string, { eyes: IswEyes; mouth: IswMouth; say: string }>;
 export type Expression = keyof typeof FACES;
 
@@ -43,6 +45,7 @@ export function expressionFor(state: GameState, idle: boolean, fxKind: string | 
 const IswChanCam = ({ state }: { state: GameState }) => {
   const [idle, setIdle] = useState(false);
   const [fxKind, setFxKind] = useState<string | null>(null);
+  const { banned } = useChanBan();
 
   useEffect(() => {
     setIdle(false);
@@ -57,7 +60,7 @@ const IswChanCam = ({ state }: { state: GameState }) => {
     return () => clearTimeout(t);
   }, [state.fx?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const face = FACES[expressionFor(state, idle, fxKind)];
+  const face = FACES[banned ? "blocked" : expressionFor(state, idle, fxKind)];
   return (
     <div className="shrink-0 border border-pink-400/40 px-1 py-0.5 text-pink-300 select-none" aria-label={`ISW-Chan: ${face.say}`}>
       <div className="flex justify-between gap-2 text-[9px] text-pink-400/60"><span className="animate-pulse">● REC</span><span>chan</span></div>

@@ -19,6 +19,7 @@ import { has, normalize, readInput, type Intent, type Topic } from "./parser";
 import type { Sprite } from "./raycaster";
 import { chanTalk, openConvo } from "./chanconvo";
 import { browserChanContext } from "./consolechat";
+import { banStatus, bannedFor, KICKED_BY } from "./chanban";
 
 const LOG_LIMIT = 60;
 const AMBUSH_CHANCE = 0.12; // per move between rooms
@@ -626,6 +627,9 @@ function caught(state: GameState, talk: TalkState, npc: NpcDef, lines: string[])
 
 /* ISW-Chan over the intercom: her full conversation (chanconvo.ts), same as in the console */
 function converseChan(state: GameState, talk: TalkState, input: string): GameState {
+  // Hardware-banned (chanban.ts): she doesn't pick up
+  const banned = bannedFor();
+  if (banned > 0) return { ...state, log: out(state, `${ISW_CHAN_TAG} *call rejected*`, `${ISW_CHAN_TAG} ${banStatus(banned)}. stop calling.`) };
   const p = state.player;
   const ctx = browserChanContext(p ? { className: p.className, floor: p.floor, hp: p.stats.hp, maxHp: p.stats.maxHp, credits: p.credits, level: p.level } : undefined);
   const t = chanTalk(talk.chan ?? openConvo(ctx).convo, input, ctx);
@@ -635,7 +639,7 @@ function converseChan(state: GameState, talk: TalkState, input: string): GameSta
   return {
     ...state, mode: "GAME_OVER", currentEnemy: null, chanAffection,
     talk: { ...talk, npc: null, chan: t.convo },
-    runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
+    runStats: { ...state.runStats, killedBy: KICKED_BY },
     log: out(state, ...lines, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} ${t.convo.kicked}`, "Press [R] to restart."),
   };
 }

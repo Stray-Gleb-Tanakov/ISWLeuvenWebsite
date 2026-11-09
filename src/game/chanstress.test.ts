@@ -70,7 +70,8 @@ it("console: two inappropriate messages block her", () => {
   console.log = orig;
   expect(r).toBe("🚫");
   expect(after).toBe("🚫");
-  expect(log.join("\n")).toMatch(/blocked/);
+  expect(log.join("\n")).toMatch(/hardware banned/);
+  localStorage.clear(); document.cookie = "isw_chan_ban=; path=/; max-age=0"; // the ban outlives the test otherwise
 });
 
 it("ending: a warning, then she throws you out", () => {

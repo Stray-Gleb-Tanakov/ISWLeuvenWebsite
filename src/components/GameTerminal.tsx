@@ -25,6 +25,7 @@ import type { HiddenFlag } from "@/game/flags";
 import { ICONS, DEATH_TEXTS } from "@/game/cosmetics";
 import { PERKS, PARANOIA_WARNINGS, hasPerk } from "@/game/perks";
 import { ISW_CHAN_TAG } from "@/game/iswchan";
+import { addStrike, KICKED_BY } from "@/game/chanban";
 import { useCosmetics } from "@/hooks/UseCosmetics";
 import { play, isMuted, setMuted } from "@/lib/sfx";
 
@@ -346,6 +347,8 @@ const GameTerminal = ({ found, onSubmitFlag, onScoreSubmitted }: GameTerminalPro
     // ...and she remembers how it went (chanfacts.ts)
     const p = state.player;
     if (p) saveFacts(noteRun(loadFacts(), { className: p.className, floor: p.floor, won: state.mode === "WIN", killedBy: state.runStats.killedBy, perfects: state.runStats.perfects }));
+    // Thrown out by her (intercom or ending) counts as a strike on the hardware ban, same as in the console
+    if (state.runStats.killedBy === KICKED_BY) addStrike();
   }, [over]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What you tell her over the intercom, she keeps (how your runs went is recorded above, not here)

@@ -15,6 +15,7 @@ import { xorReveal } from "./flags";
 import { DIARY } from "./diary";
 import { openConvo, chanTalk, hangUpLine } from "./chanconvo";
 import { qualifiesForEnding, openEnding, endingReply, endingFlag, ENDING_TITLES } from "./ending";
+import { bannedFor, KICKED_BY } from "./chanban";
 
 /* Mini CTF: "Dev Mode". A leftover dev backdoor at the flag uplink; the command
    only exists here as char codes, and it is also the key to its flag. */
@@ -61,6 +62,7 @@ function emit(kind: FxKind) {
 
 /* ISW-Chan butts into the log, sometimes */
 function chan(log: string[], kind: TauntKind, p: Player | null | undefined) {
+  if (bannedFor() > 0) return; // hardware-banned: she's giving you the silent treatment
   const t = taunt(kind, p?.className);
   if (t) log.push(t);
 }
@@ -557,7 +559,9 @@ function killEnemy(state: GameState, p: Player, enemy: Enemy, log: string[]): Ga
   const runStats = { ...state.runStats, creditsEarned: state.runStats.creditsEarned + credits };
   const base = { ...state, player: lvlP, enemies, currentEnemy: null, qte: null, runStats };
 
-  if (isFinalBoss(enemy) && qualifiesForEnding(state)) {
+  // Earned the secret ending, but she's hardware-banned you: she won't talk, you get the plain win
+  const snubbed = isFinalBoss(enemy) && qualifiesForEnding(state) && bannedFor() > 0;
+  if (isFinalBoss(enemy) && qualifiesForEnding(state) && !snubbed) {
     return {
       ...base, mode: "ENDING", ending: openEnding(),
       log: [...lvlLog, "", "NEXUS goes dark. The exit unlocks.", "Then every screen in the room turns pink.", `${ISW_CHAN_TAG} wait.`].slice(-LOG_LIMIT),
@@ -566,7 +570,9 @@ function killEnemy(state: GameState, p: Player, enemy: Enemy, log: string[]): Ga
   if (isFinalBoss(enemy)) {
     return {
       ...base, mode: "WIN",
-      log: [...lvlLog, "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"].slice(-LOG_LIMIT),
+      log: [...lvlLog,
+        ...(snubbed ? ["", "Every screen in the room flickers pink for a second.", `${ISW_CHAN_TAG} ...oh. it's you. blacklisted device. not talking to you.`, "The screens go back to normal."] : []),
+        "", "╔══════════════════════════════════════╗", "║     NEXUS DESTROYED — YOU WIN!      ║", "║   The mainframe is yours, runner.   ║", "╚══════════════════════════════════════╝"].slice(-LOG_LIMIT),
     };
   }
   if (enemy.isBoss) {
@@ -587,6 +593,7 @@ export function chanMeddles(prev: GameState, next: GameState, action: GameAction
   if (!p || next.talk) return next;
   const mood = moodOf(next.iswAffection);
   if (next.iswAffection === undefined || mood === "curious") return next;
+  if (bannedFor() > 0) return next; // hardware-banned: no help, no meddling
   if (mood === "attached" && next.mode === "COMBAT" && p.stats.hp > 0 && p.stats.hp < p.stats.maxHp * CHAN_HEAL_BELOW && next.iswHelpedFloor !== p.floor) {
     const heal = Math.floor(p.stats.maxHp * CHAN_HEAL);
     return {
@@ -1485,7 +1492,7 @@ function reduce(state: GameState, action: GameAction): GameState {
       const ending = endingReply(state.ending, action.text);
       if (ending.kicked) {
         return {
-          ...state, ending, mode: "GAME_OVER", runStats: { ...state.runStats, killedBy: "ISW-Chan (kicked out)" },
+          ...state, ending, mode: "GAME_OVER", runStats: { ...state.runStats, killedBy: KICKED_BY },
           log: addLog(state, "", "═══ DISCONNECTED BY ISW-CHAN ═══", `${ISW_CHAN_TAG} Inappropriate. Twice. No ending for you.`, "Press [R] to restart."),
         };
       }

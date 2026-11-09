@@ -358,7 +358,7 @@ const PrivacyPolicy = () => {
 
           <BulletList
             items={[
-              "Game progress, settings, and similar preferences are saved in your own browser (local storage and one small cookie). They never leave your device, and you can delete them by clearing your browser data.",
+              "Game progress, settings, and similar preferences are saved in your own browser (local storage and two small cookies). They never leave your device, and you can delete them by clearing your browser data.",
               "If you submit a score to the game leaderboard, the name you choose and your score are stored on our server and shown publicly on the leaderboard. Don't use your real name if you don't want it to be public.",
             ]}
           />

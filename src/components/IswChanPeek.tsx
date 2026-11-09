@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { xorReveal } from "@/game/flags";
+import { banStatus } from "@/game/chanban";
+import { useChanBan } from "@/hooks/UseChanBan";
+import IswChanPortrait from "@/components/IswChanPortrait";
 
 /* Now and then ISW-Chan peeks in from the edge of the screen and ducks away.
-   Mini CTF "Peekaboo": catch her (click) 10 times. */
+   Mini CTF "Peekaboo": catch her (click) 10 times.
+   Hardware-banned (chanban.ts)? She still peeks, but only to glare, and catches don't count. */
 
 const CATCHES_KEY = "isw_chan_caught";
 export const CATCHES_NEEDED = 10;
@@ -36,6 +40,7 @@ const IswChanPeek = () => {
   const { pathname } = useLocation();
   const [peek, setPeek] = useState<{ edge: Edge; at: number } | null>(null);
   const [line, setLine] = useState<string | null>(null);
+  const { banned, left } = useChanBan();
 
   useEffect(() => {
     setPeek(null);
@@ -54,6 +59,11 @@ const IswChanPeek = () => {
   }, [line]);
 
   const caught = () => {
+    if (banned) {
+      setPeek(null);
+      setLine(`don't touch me. ${banStatus(left)}.`);
+      return;
+    }
     const count = readCatches() + 1;
     try { localStorage.setItem(CATCHES_KEY, String(count)); } catch { /* she forgets */ }
     setPeek(null);
@@ -69,11 +79,11 @@ const IswChanPeek = () => {
       {peek && (
         <button
           onClick={caught}
-          aria-label="ISW-Chan is peeking. Catch her!"
-          className={`isw-peek isw-peek-${peek.edge} fixed z-50 font-mono text-pink-400 text-xs leading-none bg-transparent`}
+          aria-label={banned ? "ISW-Chan is glaring at you." : "ISW-Chan is peeking. Catch her!"}
+          className={`isw-peek isw-peek-${peek.edge} fixed z-50 bg-transparent ${banned ? "text-red-400" : "text-pink-300"}`}
           style={pos}
         >
-          <pre>{peek.edge === "left" ? "\\_/\\\n o.o)\n  > )" : peek.edge === "right" ? " /\\_/\n(o.o \n( <  " : " /\\_/\\ \n( o.o )"}</pre>
+          <IswChanPortrait eyes={banned ? "angry" : "wide"} mouth={banned ? "frown" : "o"} crop className="text-[3px] sm:text-[4px]" label="" />
         </button>
       )}
       {line && (

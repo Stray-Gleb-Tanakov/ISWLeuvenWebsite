@@ -123,11 +123,21 @@
 .rc-sprite-green { color: hsl(140 90% 60%); text-shadow: 0 0 4px hsl(140 90% 50% / 0.6); }
 
 /* ----- ISW-Chan around the site (IswChanPeek, 404 dance) ----- */
-.isw-peek { text-shadow: 0 0 6px hsl(330 100% 60% / 0.7); cursor: pointer; }
+.isw-peek { text-shadow: 0 0 2px currentColor; cursor: pointer; }
 .isw-peek-left { animation: isw-peek-left 2.6s ease-in-out forwards; }
 .isw-peek-right { animation: isw-peek-right 2.6s ease-in-out forwards; }
 .isw-peek-bottom { animation: isw-peek-bottom 2.6s ease-in-out forwards; }
-@keyframes isw-peek-left { 0%, 100% { transform: translateX(-100%); } 25%, 75% { transform: translateX(0); } }
-@keyframes isw-peek-right { 0%, 100% { transform: translateX(100%); } 25%, 75% { transform: translateX(0); } }
-@keyframes isw-peek-bottom { 0%, 100% { transform: translateY(100%); } 25%, 75% { transform: translateY(0); } }
+@keyframes isw-peek-left { 0%, 100% { transform: translateX(-100%); } 25%, 75% { transform: translateX(-35%); } }
+@keyframes isw-peek-right { 0%, 100% { transform: translateX(100%); } 25%, 75% { transform: translateX(35%); } }
+@keyframes isw-peek-bottom { 0%, 100% { transform: translateY(100%); } 25%, 75% { transform: translateY(40%); } }
 @media (prefers-reduced-motion: reduce) { .isw-peek-left, .isw-peek-right, .isw-peek-bottom { animation: none; } }
+
+/* Permanent hardware ban mark (PageLayout): a short glitch every few seconds */
+.isw-glitch { animation: isw-glitch 4s steps(1) infinite; }
+@keyframes isw-glitch {
+  0%, 88%, 100% { transform: none; text-shadow: none; opacity: 1; }
+  90% { transform: translateX(-2px) skewX(-8deg); text-shadow: 2px 0 hsl(330 100% 60%), -2px 0 hsl(190 100% 60%); }
+  92% { transform: translateX(2px); opacity: 0.6; }
+  94% { transform: translateX(-1px) skewX(6deg); text-shadow: -2px 0 hsl(330 100% 60%), 2px 0 hsl(190 100% 60%); }
+}
+@media (prefers-reduced-motion: reduce) { .isw-glitch { animation: none; } }

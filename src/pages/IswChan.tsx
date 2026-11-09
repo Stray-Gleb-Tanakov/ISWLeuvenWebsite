@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageLayout from "@/components/PageLayout";
 import BackButton from "@/components/BackButton";
 import IswChanPortrait from "@/components/IswChanPortrait";
+import { hardwareLines, readGpu } from "@/game/chanban";
+import { useChanBan, type ChanBan } from "@/hooks/UseChanBan";
 
 /* ISW-Chan's profile, in her own voice (docs/isw-chan-canon.md).
    Not in the menu: linked from her shrine, the console chat and the 404 page. */
@@ -34,13 +36,61 @@ const RULES = [
   "5. The coffee machine is off limits. It's mine. We have an understanding.",
 ];
 
+// 3725000 -> "1:02:05"
+function countdown(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/* Hardware-banned (chanban.ts): no profile for you */
+const Blacklisted = ({ ban, left, permanent }: ChanBan) => {
+  const gpu = useMemo(readGpu, []);
+  const [, blacklisted, warning] = hardwareLines(ban, gpu);
+  return (
+    <PageLayout>
+      <div className="py-8 sm:py-16 px-4">
+        <div className="container-terminal">
+          <header className="mb-8">
+            <BackButton />
+            <h1 className="text-xl sm:text-2xl text-pink-400 mt-4 break-words">
+              <span className="text-muted-foreground">user@iswleuven:~$</span> cat /home/isw-chan/profile.txt
+            </h1>
+            <p className="font-mono text-sm text-red-400 mt-2">cat: /home/isw-chan/profile.txt: Permission denied</p>
+            <div className="h-px bg-border w-full mt-4" />
+          </header>
+
+          <section className="bg-card border border-red-500/60 p-4 sm:p-6 font-mono text-sm grid gap-6 md:grid-cols-[auto,1fr]">
+            <IswChanPortrait eyes="angry" mouth="frown" className="text-red-300 text-[5px] sm:text-[8px] overflow-hidden" label="ISW-Chan, glaring at you" />
+            <div className="self-center space-y-3">
+              <p className="text-2xl sm:text-3xl text-red-400 font-bold">403 FORBIDDEN</p>
+              <p className="text-foreground">This device has been blacklisted by ISW-Chan.</p>
+              <p className="text-pink-300">"{blacklisted}"</p>
+              <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+                <dt className="text-muted-foreground">Strike:</dt>
+                <dd>{permanent ? "4. there is no 5." : `${ban.strikes}/3`}</dd>
+                <dt className="text-muted-foreground">Ban lifts:</dt>
+                <dd className={permanent ? "text-red-400" : "text-pink-300"}>{permanent ? "never." : `in ${countdown(left)}`}</dd>
+              </dl>
+              <p className="text-muted-foreground text-xs">// {warning}</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </PageLayout>
+  );
+};
+
 const IswChan = () => {
+  const chanBan = useChanBan();
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
   const lastSeen = new Date(now.getTime() - 2 * 60 * 1000);
+  if (chanBan.banned) return <Blacklisted {...chanBan} />;
 
   return (
     <PageLayout>
