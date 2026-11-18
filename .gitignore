@@ -31,3 +31,5 @@ members-api/k8s-secret.yaml
 door-api/.env
 door-api/k8s-secret.yaml
 node_modules
+isw-db/.env
+isw-db/k8s-secret.yaml

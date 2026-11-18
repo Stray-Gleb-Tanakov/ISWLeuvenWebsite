@@ -26,6 +26,22 @@ spec:
           envFrom:
             - secretRef:
                 name: food-api-secrets
+          # Game scores go to isw-db (k8s/isw-db.yaml). The password is shared with
+          # isw-db's own Secret, so it only lives in one place.
+          env:
+            - name: GAME_DB_HOST
+              value: isw-db
+            - name: GAME_DB_PORT
+              value: "3306"
+            - name: GAME_DB_NAME
+              value: isw
+            - name: GAME_DB_USER
+              value: isw
+            - name: GAME_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: isw-db-secrets
+                  key: MARIADB_PASSWORD
           readinessProbe:
             httpGet:
               path: /api/health

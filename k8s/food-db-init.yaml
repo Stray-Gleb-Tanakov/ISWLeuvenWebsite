@@ -1,0 +1,37 @@
+# Table setup for food-db, mounted at /docker-entrypoint-initdb.d.
+# MariaDB only runs these scripts when the data volume is EMPTY (first start).
+# Once the database exists, editing or pushing this file changes nothing in it:
+# schema changes to a live database are done by hand.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: food-db-init
+  namespace: iswleuven
+  labels:
+    app: food-db
+data:
+  01-schema.sql: |
+    -- Food & drinks fallback for /lokaal (the inventory app is the main source).
+    -- Prices are in cents: 0 = free, NULL = N/A. amount: NULL = not tracked, 0 = sold out.
+    CREATE TABLE IF NOT EXISTS food_categories (
+      id         VARCHAR(32) PRIMARY KEY,
+      title      VARCHAR(64) NOT NULL,
+      emoji      VARCHAR(16) NOT NULL DEFAULT '',
+      sort_order INT         NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    CREATE TABLE IF NOT EXISTS food_items (
+      id                       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      slug                     VARCHAR(32)  NOT NULL UNIQUE,
+      category_id              VARCHAR(32)  NOT NULL,
+      name                     VARCHAR(128) NOT NULL,
+      price_non_member_cents   INT UNSIGNED NULL,
+      price_member_cents       INT UNSIGNED NULL,
+      amount                   INT UNSIGNED NULL,
+      available                BOOLEAN      NOT NULL DEFAULT TRUE,
+      sort_order               INT          NOT NULL DEFAULT 0,
+      INDEX (category_id),
+      FOREIGN KEY (category_id) REFERENCES food_categories(id) ON UPDATE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+    -- Game scores live in isw-db (isw-db-init.yaml), not here.

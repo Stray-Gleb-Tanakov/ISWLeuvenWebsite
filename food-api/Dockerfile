@@ -18,9 +18,6 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
-COPY sql ./sql
-COPY scripts ./scripts
-COPY data ./data
 
 USER node
 EXPOSE 3000

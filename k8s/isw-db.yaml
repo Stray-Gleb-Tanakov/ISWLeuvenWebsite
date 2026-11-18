@@ -1,0 +1,124 @@
+# isw-db: the club's own MariaDB, for now only the game leaderboard
+# (food-api /api/scores). Separate from food-db and the inventory app.
+# Passwords come from the isw-db-secrets Secret, applied by hand:
+#   kubectl apply -f isw-db/k8s-secret.yaml   (template: isw-db/k8s-secret.example.yaml)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: isw-db-data
+  namespace: iswleuven
+  labels:
+    app: isw-db
+  annotations:
+    # All leaderboard data lives on this volume. Never let ArgoCD prune or
+    # delete it, even if this file is moved or removed from k8s/.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: isw-db
+  namespace: iswleuven
+  labels:
+    app: isw-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: isw-db
+  template:
+    metadata:
+      labels:
+        app: isw-db
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mysql
+              containerPort: 3306
+          env:
+            # Only used on the very first start, when the volume is empty.
+            - name: MARIADB_DATABASE
+              value: isw
+            - name: MARIADB_USER
+              value: isw
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: isw-db-secrets
+                  key: MARIADB_PASSWORD
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: isw-db-secrets
+                  key: MARIADB_ROOT_PASSWORD
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            # First-start-only table setup (isw-db-init.yaml). Ignored once data exists.
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - healthcheck.sh
+                - --connect
+                - --innodb_initialized
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - healthcheck.sh
+                - --connect
+                - --innodb_initialized
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: isw-db-data
+        - name: init
+          configMap:
+            name: isw-db-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: isw-db
+  namespace: iswleuven
+  labels:
+    app: isw-db
+spec:
+  type: ClusterIP
+  selector:
+    app: isw-db
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql

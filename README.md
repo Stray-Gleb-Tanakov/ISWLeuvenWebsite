@@ -88,7 +88,7 @@ To run the APIs too, start each one in its own terminal. The Vite dev server pro
 | members-api | `PORT=3001 npm --prefix members-api run dev` | 3001 |
 | door-api | `PORT=3002 DOOR_SENSOR_TOKEN=test npm --prefix door-api run dev` | 3002 |
 
-food-api needs a MariaDB to talk to (`DB_HOST`, `DB_USER`, ... as env vars). members-api only emails sign-ups and needs `SMTP_*` vars to actually send them.
+food-api needs two MariaDBs: the food DB (`DB_HOST`, `DB_USER`, ...) and the game DB (`GAME_DB_HOST`, `GAME_DB_USER`, ...). members-api only emails sign-ups and needs `SMTP_*` vars to actually send them.
 
 Each API has `npm run typecheck`.
 
@@ -99,17 +99,33 @@ Each API has `npm run typecheck`.
 ### food-api
 
 - `GET /api/food`: the menu shown on `/lokaal`. It uses the inventory app when `INVENTORY_API_URL` and `INVENTORY_API_TOKEN` are set, and falls back to the database otherwise.
-- `/api/scores`: the game leaderboard.
-- On startup it applies `food-api/sql/schema.sql` (everything in there must be safe to run again).
-- Seed the menu from `food-api/data/food.json`:
-  ```sh
-  kubectl -n iswleuven exec deploy/food-api -- npm run seed:food
-  ```
-  After the first seed, the database is the source of truth: edit prices there.
+- `/api/scores`: the game leaderboard, stored in **isw-db**.
+- It only reads and writes rows. It never creates tables or pushes values, so a deploy can't change what's in a database.
 
 ### members-api
 
 - `POST /api/members`: the sign-up form. It emails each sign-up to `MAIL_TO` and stores it in the members DB once that exists (without `DB_HOST` it only emails).
+
+### Databases
+
+Both are MariaDB in the cluster, deployed by ArgoCD from `k8s/`. Their data lives on a volume that ArgoCD is told never to prune or delete. Each has an `-init.yaml` that creates the tables, but MariaDB only runs it on the very first start, when the volume is empty. After that the database is the source of truth: live data and table changes are done by hand, never through a push.
+
+| DB | Manifests | Holds | Used by |
+|----|-----------|-------|---------|
+| isw-db | `k8s/isw-db.yaml`, `k8s/isw-db-init.yaml` | `game_scores` | food-api (`/api/scores`) |
+| food-db | `k8s/mariadb.yaml`, `k8s/food-db-init.yaml` | `food_categories`, `food_items` | food-api fallback menu |
+
+isw-db's passwords live in one Secret, `isw-db-secrets` (template: `isw-db/k8s-secret.example.yaml`). Apply it **before** isw-db first starts:
+
+```sh
+kubectl apply -f isw-db/k8s-secret.yaml
+```
+
+To look at the data (e.g. to remove a cheated score):
+
+```sh
+kubectl -n iswleuven exec -it deploy/isw-db -- mariadb -u isw -p isw
+```
 
 ### door-api
 

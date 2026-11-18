@@ -8,7 +8,6 @@
   "scripts": {
     "start": "node src/index.ts",
     "dev": "node --watch src/index.ts",
-    "seed:food": "node scripts/seed-food.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

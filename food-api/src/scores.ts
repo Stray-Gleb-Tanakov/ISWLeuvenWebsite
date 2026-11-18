@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Hono } from "hono";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
-import { db } from "./db.ts";
+import { gameDb } from "./db.ts";
 
 // ---- Mainframe Breach leaderboard (/mainframe_breach) ----
 
@@ -44,7 +44,7 @@ const lastSubmit = new Map<string, number>();
 export const scores = new Hono();
 
 scores.get("/", async (c) => {
-  const [rows] = await db.query<RowDataPacket[]>(
+  const [rows] = await gameDb.query<RowDataPacket[]>(
     `SELECT name, score, game_score AS gameScore, flags_found AS flagsFound, badge, floor,
             class_name AS className, won, created_at AS createdAt
      FROM game_scores WHERE version = ? ORDER BY score DESC, created_at ASC LIMIT 20`,
@@ -86,12 +86,12 @@ scores.post("/", async (c) => {
   const score = gameScore + found.size * FLAG_POINTS;
 
   lastSubmit.set(ip, now);
-  await db.query<ResultSetHeader>(
+  await gameDb.query<ResultSetHeader>(
     `INSERT INTO game_scores (version, name, class_name, floor, won, game_score, flags_found, badge, score)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [SCORE_VERSION, name, className, floor, won, gameScore, found.size, badge ?? null, score],
   );
-  const [[{ position }]] = await db.query<RowDataPacket[]>(
+  const [[{ position }]] = await gameDb.query<RowDataPacket[]>(
     "SELECT COUNT(*) + 1 AS position FROM game_scores WHERE version = ? AND score > ?",
     [SCORE_VERSION, score],
   );
