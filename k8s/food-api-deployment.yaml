@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: food-api
-          image: ghcr.io/stray-gleb-tanakov/food-api:b840d61d464ae869845e39994a6563585ff927cc
+          image: ghcr.io/stray-gleb-tanakov/food-api:1cfcb080723b00c8547462b46839ea6344761c46
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
