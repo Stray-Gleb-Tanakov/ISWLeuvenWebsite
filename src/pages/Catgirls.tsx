@@ -21,7 +21,7 @@ const Catgirls = () => (
       {/* Mini CTF: "Voicemail". The audio hides its flag in the spectrogram */}
       <div className="max-w-lg w-full border border-border bg-card p-4 font-mono text-xs space-y-2">
         <p className="text-primary">📼 1 new voicemail from ISW-Chan</p>
-        <p className="text-muted-foreground">// she sounded like she was trying to show us something</p>
+        <p className="text-muted-foreground">// She sounded like she was trying to show us something</p>
         <audio controls preload="none" src="/audio/voicemail_isw-chan.wav" className="w-full" />
         <a href="/audio/voicemail_isw-chan.wav" download className="text-primary underline">voicemail_isw-chan.wav</a>
       </div>
