@@ -1,4 +1,5 @@
 # ISW Leuven Website
+tersjtredeyi
 
 Terminal-themed info hub for the ISW Leuven student society, live at **https://iswleuven.be**.
 
